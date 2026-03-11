@@ -166,6 +166,7 @@ namespace UnityCliConnector
                                 tcs.SetResult(new ErrorResponse(ex.Message));
                             }
                         };
+                        try { EditorApplication.QueuePlayerLoopUpdate(); } catch { }
                         result = await tcs.Task;
                     }
                 }
