@@ -63,23 +63,11 @@ namespace UnityCliConnector
             string group = "";
 
             var cliAttr = type.GetCustomAttribute<UnityCliToolAttribute>();
-            if (cliAttr != null)
-            {
-                name = cliAttr.Name ?? StringCaseUtility.ToSnakeCase(type.Name);
-                description = cliAttr.Description;
-                group = cliAttr.Group;
-            }
+            if (cliAttr == null) return;
 
-            if (name == null)
-            {
-                var mcpAttr = type.GetCustomAttribute<McpForUnityToolAttribute>();
-                if (mcpAttr != null)
-                {
-                    name = mcpAttr.Name ?? StringCaseUtility.ToSnakeCase(type.Name);
-                    description = mcpAttr.Description;
-                    group = mcpAttr.Group;
-                }
-            }
+            name = cliAttr.Name ?? StringCaseUtility.ToSnakeCase(type.Name);
+            description = cliAttr.Description;
+            group = cliAttr.Group;
 
             if (name == null) return;
 
