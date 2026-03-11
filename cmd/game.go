@@ -17,20 +17,20 @@ func gameCmd(args []string, send sendFn) (*client.CommandResponse, error) {
 
 	switch action {
 	case "connect":
-		return send("mcp_connect_local", map[string]interface{}{})
+		return send("connect_local", map[string]interface{}{})
 
 	case "load":
 		idx, _ := strconv.Atoi(flags["index"])
-		return send("mcp_load_mini_game", map[string]interface{}{"index": idx})
+		return send("load_mini_game", map[string]interface{}{"index": idx})
 
 	case "phase":
 		if len(args) < 2 {
 			return nil, fmt.Errorf("usage: unity-cli game phase <Starting|Playing|Ending>")
 		}
-		return send("mcp_set_game_phase", map[string]interface{}{"phase": args[1]})
+		return send("set_game_phase", map[string]interface{}{"phase": args[1]})
 
 	case "overview":
-		return send("mcp_game_overview", map[string]interface{}{})
+		return send("game_overview", map[string]interface{}{})
 
 	case "spawn-bots":
 		count := 1
@@ -39,10 +39,10 @@ func gameCmd(args []string, send sendFn) (*client.CommandResponse, error) {
 				count = n
 			}
 		}
-		return send("mcp_spawn_bots", map[string]interface{}{"count": count})
+		return send("spawn_bots", map[string]interface{}{"count": count})
 
 	case "despawn-bots":
-		return send("mcp_despawn_bots", map[string]interface{}{})
+		return send("despawn_bots", map[string]interface{}{})
 
 	case "thin-clients-connect":
 		count := 1
@@ -51,10 +51,10 @@ func gameCmd(args []string, send sendFn) (*client.CommandResponse, error) {
 				count = n
 			}
 		}
-		return send("mcp_connect_thin_clients", map[string]interface{}{"count": count})
+		return send("connect_thin_clients", map[string]interface{}{"count": count})
 
 	case "thin-clients-disconnect":
-		return send("mcp_disconnect_thin_clients", map[string]interface{}{})
+		return send("disconnect_thin_clients", map[string]interface{}{})
 
 	default:
 		return nil, fmt.Errorf("unknown game action: %s", action)

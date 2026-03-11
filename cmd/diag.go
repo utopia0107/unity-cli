@@ -34,7 +34,7 @@ func diagCmd(args []string, send sendFn) (*client.CommandResponse, error) {
 				params["maxDepth"] = n
 			}
 		}
-		return send("mcp_entity_hierarchy", params)
+		return send("entity_hierarchy", params)
 
 	case "diff":
 		params := map[string]interface{}{}
@@ -46,10 +46,10 @@ func diagCmd(args []string, send sendFn) (*client.CommandResponse, error) {
 		if v, ok := flags["components"]; ok {
 			params["components"] = v
 		}
-		return send("mcp_compare_server_client", params)
+		return send("compare_server_client", params)
 
 	case "players":
-		return send("mcp_player_status", map[string]interface{}{"world": world})
+		return send("player_status", map[string]interface{}{"world": world})
 
 	case "vehicle":
 		params := map[string]interface{}{"world": world}
@@ -58,7 +58,7 @@ func diagCmd(args []string, send sendFn) (*client.CommandResponse, error) {
 				params["entityIndex"] = n
 			}
 		}
-		return send("mcp_inspect_vehicle", params)
+		return send("inspect_vehicle", params)
 
 	default:
 		return nil, fmt.Errorf("unknown diag action: %s\nAvailable: hierarchy, diff, players, vehicle", action)

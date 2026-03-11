@@ -24,7 +24,7 @@ func queryCmd(args []string, send sendFn) (*client.CommandResponse, error) {
 				params["maxResults"] = n
 			}
 		}
-		return send("mcp_query_entities", params)
+		return send("query_entities", params)
 
 	case "inspect":
 		params := map[string]interface{}{"world": world}
@@ -41,10 +41,10 @@ func queryCmd(args []string, send sendFn) (*client.CommandResponse, error) {
 		if v, ok := flags["components"]; ok {
 			params["components"] = v
 		}
-		return send("mcp_inspect_entity", params)
+		return send("inspect_entity", params)
 
 	case "singleton":
-		return send("mcp_query_singleton", map[string]interface{}{
+		return send("query_singleton", map[string]interface{}{
 			"world": world, "component": flags["component"],
 		})
 
@@ -58,7 +58,7 @@ func queryCmd(args []string, send sendFn) (*client.CommandResponse, error) {
 				params["maxResults"] = n
 			}
 		}
-		return send("mcp_query_component_values", params)
+		return send("query_component_values", params)
 
 	case "systems":
 		params := map[string]interface{}{"world": world}
@@ -68,7 +68,7 @@ func queryCmd(args []string, send sendFn) (*client.CommandResponse, error) {
 		if _, ok := flags["show-disabled"]; ok {
 			params["showDisabled"] = true
 		}
-		return send("mcp_list_systems", params)
+		return send("list_systems", params)
 
 	default:
 		return nil, fmt.Errorf("unknown query action: %s\nAvailable: entities, inspect, singleton, component-values, systems", action)
