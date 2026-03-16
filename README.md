@@ -12,7 +12,7 @@
 
 MCP-based Unity integrations ship tens of thousands of lines of code across Python relays, WebSocket bridges, JSON-RPC protocol layers, and runtime dependencies. The result is a system that's hard to install, hard to debug, and impossible to understand without reading the source.
 
-This project takes the opposite approach. The entire CLI is ~800 lines of Go (plus ~300 lines of help text). The Unity-side connector is ~1,800 lines of C#. There is no protocol layer, no relay process, no virtual environment — just an HTTP POST from a binary to Unity's built-in HttpListener.
+This project takes the opposite approach. The entire CLI is ~800 lines of Go (plus ~300 lines of help text). The Unity-side connector is ~1,700 lines of C#. There is no protocol layer, no relay process, no virtual environment — just an HTTP POST from a binary to Unity's built-in HttpListener.
 
 If you can run a shell command, you can control Unity. That's it.
 
