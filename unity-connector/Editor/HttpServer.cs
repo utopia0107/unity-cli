@@ -83,6 +83,10 @@ namespace UnityCliConnector
                 {
                     // Port in use, try next
                 }
+                catch (System.Net.Sockets.SocketException)
+                {
+                    // Windows/Mono throws SocketException instead of HttpListenerException
+                }
             }
 
             Debug.LogError("[UnityCliConnector] Failed to start HTTP server — no available port");

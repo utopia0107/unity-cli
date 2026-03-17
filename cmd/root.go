@@ -79,8 +79,9 @@ func Execute() error {
 		return err
 	}
 
+	timeout := flagTimeout
 	send := func(command string, params interface{}) (*client.CommandResponse, error) {
-		return client.Send(inst, command, params, flagTimeout)
+		return client.Send(inst, command, params, timeout)
 	}
 
 	var resp *client.CommandResponse
