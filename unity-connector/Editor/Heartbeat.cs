@@ -101,6 +101,7 @@ namespace UnityCliConnector
                 pid = System.Diagnostics.Process.GetCurrentProcess().Id,
                 unityVersion = Application.unityVersion,
                 timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
+                compileErrors = EditorUtility.scriptCompilationFailed,
             };
 
             try

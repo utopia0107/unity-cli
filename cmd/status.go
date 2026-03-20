@@ -63,7 +63,8 @@ func waitForAlive(port int, timeoutMs int) error {
 }
 
 // waitForReady polls indefinitely until the heartbeat state becomes "ready".
-func waitForReady(port int) {
+// Returns true if compilation had errors.
+func waitForReady(port int) bool {
 	fmt.Fprintf(os.Stderr, "Waiting for compilation...\n")
 
 	for {
@@ -73,8 +74,12 @@ func waitForReady(port int) {
 			continue
 		}
 		if status.State == "ready" {
-			fmt.Fprintf(os.Stderr, "Compilation complete.\n")
-			return
+			if status.CompileErrors {
+				fmt.Fprintf(os.Stderr, "Compilation finished with errors.\n")
+			} else {
+				fmt.Fprintf(os.Stderr, "Compilation complete.\n")
+			}
+			return status.CompileErrors
 		}
 	}
 }

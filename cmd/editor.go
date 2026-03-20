@@ -39,7 +39,10 @@ func editorCmd(args []string, send sendFn, port int) (*client.CommandResponse, e
 			if err != nil {
 				return nil, err
 			}
-			waitForReady(port)
+			hasErrors := waitForReady(port)
+			if hasErrors {
+				return nil, fmt.Errorf("compilation finished with errors (check unity-cli console)")
+			}
 			resp.Message = "Refresh and compilation completed."
 			return resp, nil
 		}
