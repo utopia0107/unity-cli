@@ -31,13 +31,14 @@ case ":$PATH:" in
   *)
     export PATH="$INSTALL_DIR:$PATH"
     LINE="export PATH=\"$INSTALL_DIR:\$PATH\""
-    if [ -f "$HOME/.zshrc" ]; then
-      echo "$LINE" >> "$HOME/.zshrc"
-    elif [ -f "$HOME/.bashrc" ]; then
-      echo "$LINE" >> "$HOME/.bashrc"
-    else
-      echo "$LINE" >> "$HOME/.profile"
-    fi
+    SHELL_NAME="$(basename "$SHELL")"
+    case "$SHELL_NAME" in
+      zsh)  RC_FILE="$HOME/.zshrc" ;;
+      bash) RC_FILE="$HOME/.bashrc" ;;
+      *)    RC_FILE="$HOME/.profile" ;;
+    esac
+    touch "$RC_FILE"
+    echo "$LINE" >> "$RC_FILE"
     echo "Added $INSTALL_DIR to PATH (restart shell to apply)" ;;
 esac
 
