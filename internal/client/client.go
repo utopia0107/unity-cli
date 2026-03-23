@@ -118,6 +118,17 @@ func DiscoverInstance(project string, port int) (*Instance, error) {
 		return nil, fmt.Errorf("no Unity instance found for project: %s", project)
 	}
 
+	// Try to match by current working directory before falling back to timestamp
+	if cwd, err := os.Getwd(); err == nil {
+		cwdNorm := filepath.ToSlash(cwd)
+		for _, inst := range alive {
+			projNorm := filepath.ToSlash(inst.ProjectPath)
+			if cwdNorm == projNorm || strings.HasPrefix(cwdNorm, projNorm+"/") {
+				return &inst, nil
+			}
+		}
+	}
+
 	// Return the most recently updated
 	best := alive[0]
 	for _, inst := range alive[1:] {
