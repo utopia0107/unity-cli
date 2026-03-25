@@ -206,12 +206,13 @@ Use `return` to get output. Common namespaces are included by default. Add `--us
 unity-cli exec "return Application.dataPath;"
 unity-cli exec "return EditorSceneManager.GetActiveScene().name;"
 unity-cli exec "return World.All.Count;" --usings Unity.Entities
-unity-cli exec "Debug.Log(\"hello\"); return null;"
-unity-cli exec "var go = new GameObject(\"Marker\"); go.tag = \"EditorOnly\"; return go.name;"
-unity-cli exec "return PlayerSettings.bundleVersion;"
+
+# Pipe via stdin to avoid shell escaping issues
+echo 'Debug.Log("hello"); return null;' | unity-cli exec
+echo 'var go = new GameObject("Marker"); go.tag = "EditorOnly"; return go.name;' | unity-cli exec
 ```
 
-Because `exec` compiles and runs real C#, it can do anything a custom tool can — inspect ECS entities, modify assets, call internal APIs, run editor utilities. For AI agents, this means **zero-friction access to Unity's entire runtime** without writing a single line of tool code.
+Because `exec` compiles and runs real C#, it can do anything a custom tool can — inspect ECS entities, modify assets, call internal APIs, run editor utilities. For AI agents, this means **zero-friction access to Unity's entire runtime** without writing a single line of tool code. Piping via stdin avoids shell escaping headaches with complex code.
 
 ### Menu Items
 

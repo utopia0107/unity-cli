@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"io"
 	"os"
 	"strconv"
 	"strings"
@@ -96,6 +97,13 @@ func Execute() error {
 			return client.Send(inst, command, params, 0)
 		}
 		resp, err = testCmd(subArgs, testSend, inst.Port)
+	case "exec":
+		subArgs = readStdinIfPiped(subArgs)
+		var params map[string]interface{}
+		params, err = buildParams(subArgs, nil)
+		if err == nil {
+			resp, err = send("exec", params)
+		}
 	default:
 		var params map[string]interface{}
 		params, err = buildParams(subArgs, nil)
@@ -228,6 +236,23 @@ func buildParams(args []string, base map[string]interface{}) (map[string]interfa
 	return params, nil
 }
 
+// readStdinIfPiped reads stdin when piped and prepends it as the first positional arg.
+func readStdinIfPiped(args []string) []string {
+	info, err := os.Stdin.Stat()
+	if err != nil {
+		return args
+	}
+	if info.Mode()&os.ModeCharDevice != 0 {
+		return args // interactive terminal, not piped
+	}
+	data, err := io.ReadAll(os.Stdin)
+	if err != nil || len(data) == 0 {
+		return args
+	}
+	code := strings.TrimRight(string(data), "\n\r")
+	return append([]string{code}, args...)
+}
+
 // splitArgs separates global flags (--port, --project, --timeout) from subcommand args.
 // Global flags must be parsed by flag.CommandLine before the subcommand runs.
 func splitArgs(args []string) (flags, commands []string) {
@@ -266,6 +291,7 @@ Console:
 
 Execute C#:
   exec "<code>"                 Run C# code in Unity (return required for output)
+  echo '<code>' | exec          Pipe code via stdin (avoids shell escaping)
   exec "<code>" --usings x,y    Add extra using directives
 
   Examples:
@@ -397,13 +423,16 @@ Default usings: System, System.Collections.Generic, System.IO, System.Linq,
 Examples:
   unity-cli exec "return 1+1;"
   unity-cli exec "return Application.dataPath;"
-  unity-cli exec "return EditorSceneManager.GetActiveScene().name;"
-  unity-cli exec "Debug.Log(\"hello\"); return null;"
+  echo 'return EditorSceneManager.GetActiveScene().name;' | unity-cli exec
+  echo 'Debug.Log("hello"); return null;' | unity-cli exec
   unity-cli exec "return World.All.Count;" --usings Unity.Entities
+
+Stdin:
+  Pipe code via stdin to avoid shell escaping issues.
+  echo '<code>' | unity-cli exec [--usings ns1,ns2]
 
 Notes:
   - Use 'return' for output, 'return null;' for void operations
-  - Strings inside code need escaped quotes: \"text\"
 `)
 	case "menu":
 		fmt.Print(`Usage: unity-cli menu "<path>"

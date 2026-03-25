@@ -151,7 +151,16 @@ namespace UnityCliConnector.Tools
                 if (method == null)
                     return new ErrorResponse("Internal error: compiled type or method not found.");
 
-                var result = method.Invoke(null, null);
+                object result;
+                try
+                {
+                    result = method.Invoke(null, null);
+                }
+                catch (TargetInvocationException tie)
+                {
+                    var inner = tie.InnerException ?? tie;
+                    return new ErrorResponse($"Runtime error: {inner.GetType().Name}: {inner.Message}");
+                }
                 return new SuccessResponse("OK", Serialize(result, 0));
             }
             finally
