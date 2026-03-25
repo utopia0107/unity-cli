@@ -18,7 +18,7 @@
 
 그래서 정반대로 만들었습니다. Unity에 HTTP로 직접 통신하는 바이너리 하나. 서버를 띄울 필요 없이 — Unity 패키지가 자동으로 수신합니다. 설정 파일 없이 — Unity 인스턴스를 알아서 찾습니다. 도구 등록 없이 — 이름으로 바로 호출합니다. 캐싱도, 프로토콜 레이어도, 절차도 없습니다.
 
-CLI 전체가 Go ~1,400줄(+ help text ~300줄), Unity 커넥터가 C# ~2,200줄입니다. 셸에서 Unity를 다루게 해주는 아주 얇은 레이어 — 그 본분에 충실합니다. 바이너리 설치하고, Unity 패키지 추가하면 끝입니다.
+CLI 전체가 Go ~800줄(+ help text ~300줄), Unity 커넥터가 C# ~2,300줄입니다. 셸에서 Unity를 다루게 해주는 아주 얇은 레이어 — 그 본분에 충실합니다. 바이너리 설치하고, Unity 패키지 추가하면 끝입니다.
 
 ## 설치
 
@@ -96,7 +96,7 @@ unity-cli editor play --wait
 unity-cli exec "Application.dataPath"
 
 # 콘솔 로그 읽기
-unity-cli console --filter all
+unity-cli console --filter error,warning,log
 ```
 
 ## 동작 방식
@@ -149,6 +149,7 @@ Unity 커넥터의 동작:
 | `test` | EditMode/PlayMode 테스트 실행 |
 | `menu` | Unity 메뉴 아이템을 경로로 실행 |
 | `reserialize` | Unity 시리얼라이저를 통해 에셋 재직렬화 |
+| `screenshot` | Scene/Game 뷰를 PNG로 캡처 |
 | `profiler` | 프로파일러 하이어라키 읽기, 녹화 제어 |
 | `list` | 사용 가능한 모든 도구와 파라미터 스키마 표시 |
 | `status` | Unity Editor 연결 상태 확인 |
@@ -183,7 +184,7 @@ unity-cli editor refresh --compile
 unity-cli console
 
 # 모든 타입의 최근 20개 로그 읽기
-unity-cli console --lines 20 --filter all
+unity-cli console --lines 20 --filter error,warning,log
 
 # 에러만 읽기
 unity-cli console --filter error

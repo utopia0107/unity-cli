@@ -5,7 +5,7 @@ using UnityEditor;
 
 namespace UnityCliConnector.Tools
 {
-    [UnityCliTool(Description = "Execute a Unity menu item by path.")]
+    [UnityCliTool(Name = "menu", Description = "Execute a Unity menu item by path.")]
     public static class ExecuteMenuItem
     {
         private static readonly HashSet<string> Blacklist = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "File/Quit" };
@@ -18,7 +18,9 @@ namespace UnityCliConnector.Tools
 
         public static object HandleCommand(JObject @params)
         {
-            string menuPath = @params["menu_path"]?.ToString() ?? @params["menuPath"]?.ToString();
+            var p = new ToolParams(@params);
+            string menuPath = p.Get("menu_path")
+                ?? (p.GetRaw("args") as JArray)?[0]?.ToString();
             if (string.IsNullOrWhiteSpace(menuPath))
                 return new ErrorResponse("'menu_path' parameter required.");
 

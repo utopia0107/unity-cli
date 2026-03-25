@@ -67,7 +67,8 @@ func waitForAlive(port int, timeoutMs int) error {
 func waitForReady(port int) bool {
 	fmt.Fprintf(os.Stderr, "Waiting for compilation...\n")
 
-	for {
+	deadline := time.Now().Add(5 * time.Minute)
+	for time.Now().Before(deadline) {
 		time.Sleep(500 * time.Millisecond)
 		status, err := readStatus(port)
 		if err != nil {
@@ -82,4 +83,7 @@ func waitForReady(port int) bool {
 			return status.CompileErrors
 		}
 	}
+
+	fmt.Fprintf(os.Stderr, "Timed out waiting for compilation (5m).\n")
+	return true
 }

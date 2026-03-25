@@ -91,56 +91,19 @@ func Execute() error {
 	switch category {
 	case "editor":
 		resp, err = editorCmd(subArgs, send, inst.Port)
-	case "console":
-		resp, err = consoleCmd(subArgs, send)
-	case "exec":
-		resp, err = execCmd(subArgs, send)
 	case "list":
 		resp, err = send("list_tools", map[string]interface{}{})
-	case "profiler":
-		resp, err = profilerCmd(subArgs, send)
-	case "menu":
-		resp, err = menuCmd(subArgs, send)
-	case "reserialize":
-		resp, err = reserializeCmd(subArgs, send)
-	case "screenshot":
-		resp, err = screenshotCmd(subArgs, send)
 	case "test":
-		// No timeout — EditMode holds connection open until tests finish
 		testSend := func(command string, params interface{}) (*client.CommandResponse, error) {
 			return client.Send(inst, command, params, 0)
 		}
 		resp, err = testCmd(subArgs, testSend, inst.Port)
 	default:
-		// Direct custom tool call — flags become params directly
-		// e.g. `unity-cli system_tree --depth 1 --scope project` → {"depth":1,"scope":"project"}
-		params := map[string]interface{}{}
-		flags := parseSubFlags(subArgs)
-		if raw, ok := flags["params"]; ok {
-			if jsonErr := json.Unmarshal([]byte(raw), &params); jsonErr != nil {
-				return fmt.Errorf("invalid JSON in --params: %w", jsonErr)
-			}
+		var params map[string]interface{}
+		params, err = buildParams(subArgs, nil)
+		if err == nil {
+			resp, err = send(category, params)
 		}
-		// Merge remaining flags into params (--params takes precedence for conflicts)
-		for k, v := range flags {
-			if k == "params" {
-				continue
-			}
-			if _, exists := params[k]; exists {
-				continue
-			}
-			// Try to parse as int, then bool, then keep as string
-			if n, err := strconv.Atoi(v); err == nil {
-				params[k] = n
-			} else if v == "true" {
-				params[k] = true
-			} else if v == "false" {
-				params[k] = false
-			} else {
-				params[k] = v
-			}
-		}
-		resp, err = send(category, params)
 	}
 
 	if err != nil {
@@ -213,26 +176,58 @@ func parseSubFlags(args []string) map[string]string {
 	return flags
 }
 
-func setInt(flags map[string]string, params map[string]interface{}, flag, param string) {
-	if v, ok := flags[flag]; ok {
+// buildParams parses --flag value pairs and positional args from args and merges with base params.
+func buildParams(args []string, base map[string]interface{}) (map[string]interface{}, error) {
+	params := map[string]interface{}{}
+	for k, v := range base {
+		params[k] = v
+	}
+
+	var positional []string
+	flags := map[string]string{}
+	for i := 0; i < len(args); i++ {
+		a := args[i]
+		if strings.HasPrefix(a, "--") {
+			key := a[2:]
+			if i+1 < len(args) && !strings.HasPrefix(args[i+1], "--") {
+				flags[key] = args[i+1]
+				i++
+			} else {
+				flags[key] = "true"
+			}
+		} else {
+			positional = append(positional, a)
+		}
+	}
+
+	if raw, ok := flags["params"]; ok {
+		if jsonErr := json.Unmarshal([]byte(raw), &params); jsonErr != nil {
+			return nil, fmt.Errorf("invalid JSON in --params: %w", jsonErr)
+		}
+	}
+	for k, v := range flags {
+		if k == "params" {
+			continue
+		}
+		if _, exists := params[k]; exists {
+			continue
+		}
 		if n, err := strconv.Atoi(v); err == nil {
-			params[param] = n
+			params[k] = n
+		} else if v == "true" {
+			params[k] = true
+		} else if v == "false" {
+			params[k] = false
+		} else {
+			params[k] = v
 		}
 	}
-}
 
-func setFloat(flags map[string]string, params map[string]interface{}, flag, param string) {
-	if v, ok := flags[flag]; ok {
-		if f, err := strconv.ParseFloat(v, 64); err == nil {
-			params[param] = f
-		}
+	if len(positional) > 0 {
+		params["args"] = positional
 	}
-}
 
-func setStr(flags map[string]string, params map[string]interface{}, flag, param string) {
-	if v, ok := flags[flag]; ok {
-		params[param] = v
-	}
+	return params, nil
 }
 
 // splitArgs separates global flags (--port, --project, --timeout) from subcommand args.
@@ -267,7 +262,7 @@ Editor Control:
 Console:
   console                       Read error & warning logs (default)
   console --lines 20            Limit to N entries
-  console --filter all          Filter: error, warn, log, all
+  console --filter error,warning,log   Filter by log types (comma-separated)
   console --stacktrace short    Stack trace: none (default), short, full
   console --clear               Clear console
 
@@ -288,9 +283,9 @@ Menu:
     menu "Assets/Refresh"
 
 Screenshot:
-  screenshot                     Capture scene view (default)
-  screenshot --view game         Capture game view
-  screenshot --output <path>     Custom output path
+  screenshot                          Capture scene view (default)
+  screenshot --view game              Capture game view
+  screenshot --output_path <path>     Custom output path
 
 Reserialize:
   reserialize [path...]          Force reserialize (no args = entire project)
@@ -371,7 +366,8 @@ Read Unity console log entries.
 
 Options:
   --lines <N>          Limit to N entries
-  --filter <mode>      Filter: error, warn, log, all (default: error+warn)
+  --filter <types>     Comma-separated log types: error, warning, log (default: error,warning)
+  --filter_text <str>  Filter log messages containing this text
   --stacktrace <mode>  none: first line only (default)
                         short: with stack trace, internal frames filtered
                         full: raw message including all frames
@@ -379,7 +375,7 @@ Options:
 
 Examples:
   unity-cli console
-  unity-cli console --lines 20 --filter all
+  unity-cli console --lines 20 --filter error,warning,log
   unity-cli console --stacktrace short
   unity-cli console --filter error --stacktrace full
   unity-cli console --clear
@@ -428,14 +424,14 @@ Options:
   --view <mode>      scene (default), game
   --width <N>        Image width in pixels (default: 1920)
   --height <N>       Image height in pixels (default: 1080)
-  --output <path>    Output path, absolute or relative to project root
-                     (default: Screenshots/screenshot.png)
+  --output_path <path>  Output path, absolute or relative to project root
+                        (default: Screenshots/screenshot.png)
 
 Examples:
   unity-cli screenshot
   unity-cli screenshot --view game
   unity-cli screenshot --view scene --width 3840 --height 2160
-  unity-cli screenshot --output captures/my_scene.png
+  unity-cli screenshot --output_path captures/my_scene.png
 `)
 	case "reserialize":
 		fmt.Print(`Usage: unity-cli reserialize [path...]
@@ -457,6 +453,8 @@ Subcommands:
     --depth <N>         Recursive depth (0=unlimited, default: 1)
     --root <name>       Set root by name (substring match, searches full tree)
     --frames <N>        Average over last N frames (flat output, sorted by time)
+    --from <N>          Start frame index for range average
+    --to <N>            End frame index for range average
     --parent <ID>       Drill into item by ID
     --min <ms>          Filter items below threshold
     --sort <col>        Sort by: total (default), self, calls

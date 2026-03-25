@@ -18,7 +18,7 @@ That felt wrong. If I can `curl` a URL, why do I need all that?
 
 So I built the opposite: a single binary that talks directly to Unity via HTTP. No server to run — the Unity package listens automatically. No config to write — it discovers Unity instances on its own. No tool registration — just call by name. No caching, no protocol layers, no ceremony.
 
-The entire CLI is ~1,400 lines of Go (plus ~300 lines of help text). The Unity-side connector is ~2,200 lines of C#. It's just a thin layer that lets you control Unity from the shell — nothing more. You install the binary, add the Unity package, and it works.
+The entire CLI is ~800 lines of Go (plus ~300 lines of help text). The Unity-side connector is ~2,300 lines of C#. It's just a thin layer that lets you control Unity from the shell — nothing more. You install the binary, add the Unity package, and it works.
 
 ## Install
 
@@ -96,7 +96,7 @@ unity-cli editor play --wait
 unity-cli exec "Application.dataPath"
 
 # Read console logs
-unity-cli console --filter all
+unity-cli console --filter error,warning,log
 ```
 
 ## How It Works
@@ -149,6 +149,7 @@ Before compiling or reloading, the Connector records the state (`compiling`, `re
 | `test` | Run EditMode/PlayMode tests |
 | `menu` | Execute any Unity menu item by path |
 | `reserialize` | Re-serialize assets through Unity's serializer |
+| `screenshot` | Capture scene/game view as PNG |
 | `profiler` | Read profiler hierarchy, control recording |
 | `list` | Show all available tools with parameter schemas |
 | `status` | Show Unity Editor connection state |
@@ -183,7 +184,7 @@ unity-cli editor refresh --compile
 unity-cli console
 
 # Read last 20 log entries of all types
-unity-cli console --lines 20 --filter all
+unity-cli console --lines 20 --filter error,warning,log
 
 # Read only errors
 unity-cli console --filter error

@@ -22,9 +22,10 @@ namespace UnityCliConnector.Tools
 
         public static object HandleCommand(JObject @params)
         {
-            string mode = @params?["mode"]?.ToString() ?? "if_dirty";
-            string scope = @params?["scope"]?.ToString() ?? "all";
-            string compile = @params?["compile"]?.ToString() ?? "none";
+            var p = new ToolParams(@params ?? new JObject());
+            string mode = p.Get("mode", "if_dirty");
+            string scope = p.Get("scope", "all");
+            string compile = p.Get("compile", "none");
 
             bool compileRequested = false;
 

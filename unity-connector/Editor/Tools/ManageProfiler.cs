@@ -8,7 +8,7 @@ using UnityEngine;
 
 namespace UnityCliConnector.Tools
 {
-    [UnityCliTool(Description = "Control Unity Profiler. Actions: hierarchy, enable, disable, status, clear.")]
+    [UnityCliTool(Name = "profiler", Description = "Control Unity Profiler. Actions: hierarchy, enable, disable, status, clear.")]
     public static class ManageProfiler
     {
         public class Parameters
@@ -29,22 +29,22 @@ namespace UnityCliConnector.Tools
             public int Frames { get; set; }
 
             [ToolParameter("Thread index. 0 = main thread.")]
-            public int ThreadIndex { get; set; }
+            public int Thread { get; set; }
 
             [ToolParameter("Parent item ID to drill into. Omit for root level.")]
-            public int ParentId { get; set; }
+            public int Parent { get; set; }
 
             [ToolParameter("Find item by name and use as root. Substring match.")]
             public string Root { get; set; }
 
             [ToolParameter("Minimum total time (ms) filter.")]
-            public float MinTime { get; set; }
+            public float Min { get; set; }
 
             [ToolParameter("Sort column: 'total', 'self', or 'calls'. Default 'total'.")]
-            public string SortBy { get; set; }
+            public string Sort { get; set; }
 
             [ToolParameter("Max children per level. Default 30.")]
-            public int MaxItems { get; set; }
+            public int Max { get; set; }
 
             [ToolParameter("Recursive depth. 1 = one level (default), 0 = unlimited.")]
             public int Depth { get; set; }
@@ -53,9 +53,10 @@ namespace UnityCliConnector.Tools
         public static object HandleCommand(JObject parameters)
         {
             var p = new ToolParams(parameters);
-            var action = p.Get("action")?.ToLowerInvariant();
+            var action = p.Get("action")?.ToLowerInvariant()
+                ?? (p.GetRaw("args") as JArray)?[0]?.ToString()?.ToLowerInvariant();
             if (string.IsNullOrEmpty(action))
-                return new ErrorResponse("'action' required. Valid: hierarchy, enable, disable, status, clear.");
+                action = "hierarchy";
 
             switch (action)
             {
@@ -109,12 +110,12 @@ namespace UnityCliConnector.Tools
                 return new ErrorResponse(
                     $"Frame {frameIndex} out of range [{ProfilerDriver.firstFrameIndex}..{ProfilerDriver.lastFrameIndex}]");
 
-            var threadIndex = p.GetInt("threadIndex", 0).Value;
-            var parentIdToken = p.GetRaw("parentId");
+            var threadIndex = p.GetInt("thread", 0).Value;
+            var parentIdToken = p.GetRaw("parent");
             var rootName = p.Get("root");
-            var minTime = p.GetFloat("minTime", 0f).Value;
-            var sortBy = (p.Get("sortBy", "total")).ToLowerInvariant();
-            var maxItems = p.GetInt("maxItems", 30).Value;
+            var minTime = p.GetFloat("min", 0f).Value;
+            var sortBy = (p.Get("sort", "total")).ToLowerInvariant();
+            var maxItems = p.GetInt("max", 30).Value;
             if (maxItems <= 0) maxItems = 30;
             var depth = p.GetInt("depth", 1).Value;
             if (depth <= 0) depth = 999;
@@ -159,7 +160,7 @@ namespace UnityCliConnector.Tools
             {
                 ["frame"] = frameIndex,
                 ["threadIndex"] = threadIndex,
-                ["parentId"] = parentId,
+                ["parent"] = parentId,
                 ["parentName"] = parentName,
                 ["depth"] = depth >= 999 ? 0 : depth,
                 ["children"] = items,
@@ -178,11 +179,11 @@ namespace UnityCliConnector.Tools
             if (frameCount <= 0)
                 return new ErrorResponse($"No frames in range [{fromFrame}..{toFrame}]. Available: [{firstAvail}..{lastAvail}].");
 
-            var threadIndex = p.GetInt("threadIndex", 0).Value;
+            var threadIndex = p.GetInt("thread", 0).Value;
             var rootName = p.Get("root");
-            var minTime = p.GetFloat("minTime", 0f).Value;
-            var sortBy = (p.Get("sortBy", "total")).ToLowerInvariant();
-            var maxItems = p.GetInt("maxItems", 30).Value;
+            var minTime = p.GetFloat("min", 0f).Value;
+            var sortBy = (p.Get("sort", "total")).ToLowerInvariant();
+            var maxItems = p.GetInt("max", 30).Value;
             if (maxItems <= 0) maxItems = 30;
             var depth = p.GetInt("depth", 1).Value;
             if (depth <= 0) depth = 999;

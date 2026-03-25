@@ -43,7 +43,7 @@ namespace UnityCliConnector.Tools
                 return new ErrorResponse(actionResult.ErrorMessage);
 
             string action = actionResult.Value.ToLowerInvariant();
-            bool waitForCompletion = ParamCoercion.CoerceBool(@params?["waitForCompletion"] ?? @params?["wait_for_completion"], false);
+            bool waitForCompletion = p.GetBool("wait_for_completion");
 
             switch (action)
             {
@@ -82,7 +82,7 @@ namespace UnityCliConnector.Tools
                     return new SuccessResponse("Already stopped (not in play mode).");
 
                 case "set_active_tool":
-                    var toolNameResult = p.GetRequired("toolName", "'toolName' parameter required.");
+                    var toolNameResult = p.GetRequired("tool_name", "'tool_name' parameter required.");
                     if (!toolNameResult.IsSuccess) return new ErrorResponse(toolNameResult.ErrorMessage);
                     if (Enum.TryParse<Tool>(toolNameResult.Value, true, out var targetTool) && targetTool != Tool.None && targetTool <= Tool.Custom)
                     {
@@ -92,7 +92,7 @@ namespace UnityCliConnector.Tools
                     return new ErrorResponse($"Could not parse '{toolNameResult.Value}' as a Unity Tool.");
 
                 case "add_tag":
-                    var addTagResult = p.GetRequired("tagName", "'tagName' parameter required.");
+                    var addTagResult = p.GetRequired("tag_name", "'tag_name' parameter required.");
                     if (!addTagResult.IsSuccess) return new ErrorResponse(addTagResult.ErrorMessage);
                     if (InternalEditorUtility.tags.Contains(addTagResult.Value))
                         return new ErrorResponse($"Tag '{addTagResult.Value}' already exists.");
@@ -101,7 +101,7 @@ namespace UnityCliConnector.Tools
                     return new SuccessResponse($"Tag '{addTagResult.Value}' added.");
 
                 case "remove_tag":
-                    var removeTagResult = p.GetRequired("tagName", "'tagName' parameter required.");
+                    var removeTagResult = p.GetRequired("tag_name", "'tag_name' parameter required.");
                     if (!removeTagResult.IsSuccess) return new ErrorResponse(removeTagResult.ErrorMessage);
                     if (!InternalEditorUtility.tags.Contains(removeTagResult.Value))
                         return new ErrorResponse($"Tag '{removeTagResult.Value}' does not exist.");
@@ -120,7 +120,7 @@ namespace UnityCliConnector.Tools
 
         private static object ManageLayer(string action, ToolParams p)
         {
-            var nameResult = p.GetRequired("layerName", "'layerName' parameter required.");
+            var nameResult = p.GetRequired("layer_name", "'layer_name' parameter required.");
             if (!nameResult.IsSuccess) return new ErrorResponse(nameResult.ErrorMessage);
 
             var tagManagerAssets = AssetDatabase.LoadAllAssetsAtPath("ProjectSettings/TagManager.asset");

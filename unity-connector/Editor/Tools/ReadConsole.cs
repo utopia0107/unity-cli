@@ -8,7 +8,7 @@ using UnityEngine;
 
 namespace UnityCliConnector.Tools
 {
-    [UnityCliTool(Description = "Read or clear Unity console logs.")]
+    [UnityCliTool(Name = "console", Description = "Read or clear Unity console logs.")]
     public static class ReadConsole
     {
         private static MethodInfo _startGettingEntriesMethod, _endGettingEntriesMethod, _clearMethod, _getCountMethod, _getEntryMethod;
@@ -55,20 +55,20 @@ namespace UnityCliConnector.Tools
 
         public class Parameters
         {
-            [ToolParameter("Action: get (default) or clear")]
-            public string Action { get; set; }
-
-            [ToolParameter("Log types to include: error, warning, log, all")]
-            public string[] Types { get; set; }
+            [ToolParameter("Filter: comma-separated log types (error, warning, log). Default: error,warning")]
+            public string Filter { get; set; }
 
             [ToolParameter("Maximum number of log entries to return")]
-            public int Count { get; set; }
+            public int Lines { get; set; }
+
+            [ToolParameter("Stack trace mode: none (first line), short (filtered), full (raw). Default: none")]
+            public string Stacktrace { get; set; }
 
             [ToolParameter("Filter log messages containing this text")]
             public string FilterText { get; set; }
 
-            [ToolParameter("Stack trace mode: none (first line), short (filtered), full (raw). Default: none")]
-            public string Stacktrace { get; set; }
+            [ToolParameter("Clear console")]
+            public bool Clear { get; set; }
         }
 
         public static object HandleCommand(JObject @params)
@@ -82,27 +82,22 @@ namespace UnityCliConnector.Tools
                 return new ErrorResponse("Parameters cannot be null.");
 
             var p = new ToolParams(@params);
-            string action = p.Get("action", "get").ToLower();
 
-            if (action == "clear")
+            // --clear
+            if (p.GetBool("clear") || p.Get("action", "").ToLower() == "clear")
             {
                 _clearMethod.Invoke(null, null);
                 return new SuccessResponse("Console cleared.");
             }
 
-            if (action == "get")
-            {
-                var types = (p.GetRaw("types") as JArray)?.Select(t => t.ToString().ToLower()).ToList()
-                    ?? new List<string> { "error", "warning" };
-                int? count = p.GetInt("count");
-                string filterText = p.Get("filterText");
-                string stacktrace = p.Get("stacktrace", "none").ToLower();
-                if (types.Contains("all")) types = new List<string> { "error", "warning", "log" };
+            var filter = p.Get("filter", "error,warning").ToLower();
+            var types = filter.Split(',').Select(t => t.Trim()).Where(t => t.Length > 0).ToList();
 
-                return GetEntries(types, count, filterText, stacktrace);
-            }
+            int? count = p.GetInt("lines") ?? p.GetInt("count");
+            string filterText = p.Get("filter_text");
+            string stacktrace = p.Get("stacktrace", "none").ToLower();
 
-            return new ErrorResponse($"Unknown action: '{action}'. Valid: get, clear.");
+            return GetEntries(types, count, filterText, stacktrace);
         }
 
         private static object GetEntries(List<string> types, int? count, string filterText, string stacktrace)

@@ -52,24 +52,7 @@ namespace UnityCliConnector
 
         private JToken GetToken(string key)
         {
-            var token = _params[key];
-            if (token != null) return token;
-
-            var snakeKey = StringCaseUtility.ToSnakeCase(key);
-            if (snakeKey != key)
-            {
-                token = _params[snakeKey];
-                if (token != null) return token;
-            }
-
-            var camelKey = StringCaseUtility.ToCamelCase(key);
-            if (camelKey != key)
-            {
-                token = _params[camelKey];
-                if (token != null) return token;
-            }
-
-            return null;
+            return _params[key];
         }
 
         private string GetString(string key)

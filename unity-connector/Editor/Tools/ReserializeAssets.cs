@@ -4,7 +4,7 @@ using UnityEngine;
 
 namespace UnityCliConnector.Tools
 {
-    [UnityCliTool(Description = "Force reserialize Unity assets. No params = entire project.")]
+    [UnityCliTool(Name = "reserialize", Description = "Force reserialize Unity assets. No params = entire project.")]
     public static class ReserializeAssets
     {
         public class Parameters
@@ -18,11 +18,15 @@ namespace UnityCliConnector.Tools
 
         public static object HandleCommand(JObject parameters)
         {
-            var pathToken = parameters["path"];
-            var pathsToken = parameters["paths"];
+            var p = new ToolParams(parameters);
+            var argsToken = p.GetRaw("args") as JArray;
+            var pathToken = p.GetRaw("path");
+            var pathsToken = p.GetRaw("paths");
 
             string[] paths;
-            if (pathsToken != null && pathsToken.Type == JTokenType.Array)
+            if (argsToken != null && argsToken.Count > 0)
+                paths = argsToken.ToObject<string[]>();
+            else if (pathsToken != null && pathsToken.Type == JTokenType.Array)
                 paths = pathsToken.ToObject<string[]>();
             else if (pathToken != null)
                 paths = new[] { pathToken.ToString() };

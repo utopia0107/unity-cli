@@ -24,7 +24,7 @@ namespace UnityCliConnector
     {
         public string Name { get; set; }
         public string Description { get; set; }
-        public bool Required { get; set; } = true;
+        public bool Required { get; set; } = false;
         public string DefaultValue { get; set; }
 
         public ToolParameterAttribute(string description)

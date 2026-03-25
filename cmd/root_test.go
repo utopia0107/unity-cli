@@ -2,7 +2,26 @@ package cmd
 
 import (
 	"testing"
+
+	"github.com/youngwoocho02/unity-cli/internal/client"
 )
+
+func mockSend(wantCmd string, t *testing.T) (sendFn, *map[string]interface{}) {
+	t.Helper()
+	captured := map[string]interface{}{}
+	fn := func(cmd string, params interface{}) (*client.CommandResponse, error) {
+		if cmd != wantCmd {
+			t.Errorf("send called with command %q, want %q", cmd, wantCmd)
+		}
+		if p, ok := params.(map[string]interface{}); ok {
+			for k, v := range p {
+				captured[k] = v
+			}
+		}
+		return &client.CommandResponse{Success: true}, nil
+	}
+	return fn, &captured
+}
 
 func TestParseSubFlags(t *testing.T) {
 	tests := []struct {
@@ -62,48 +81,46 @@ func TestSplitArgs(t *testing.T) {
 	}
 }
 
-func TestSetInt(t *testing.T) {
-	flags := map[string]string{"lines": "50", "bad": "abc"}
-	params := map[string]interface{}{}
-
-	setInt(flags, params, "lines", "lineCount")
-	if params["lineCount"] != 50 {
-		t.Errorf("setInt: got %v, want 50", params["lineCount"])
+func TestBuildParams_IntParsing(t *testing.T) {
+	p, err := buildParams([]string{"--lines", "50"}, nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
 	}
-
-	setInt(flags, params, "bad", "badVal")
-	if _, ok := params["badVal"]; ok {
-		t.Error("setInt: should skip non-numeric value")
-	}
-
-	setInt(flags, params, "missing", "noop")
-	if _, ok := params["noop"]; ok {
-		t.Error("setInt: should skip missing flag")
+	if p["lines"] != 50 {
+		t.Errorf("expected lines=50, got %v", p["lines"])
 	}
 }
 
-func TestSetFloat(t *testing.T) {
-	flags := map[string]string{"min": "0.5"}
-	params := map[string]interface{}{}
-
-	setFloat(flags, params, "min", "minVal")
-	if params["minVal"] != 0.5 {
-		t.Errorf("setFloat: got %v, want 0.5", params["minVal"])
+func TestBuildParams_BoolParsing(t *testing.T) {
+	p, err := buildParams([]string{"--clear"}, nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if p["clear"] != true {
+		t.Errorf("expected clear=true, got %v", p["clear"])
 	}
 }
 
-func TestSetStr(t *testing.T) {
-	flags := map[string]string{"filter": "error"}
-	params := map[string]interface{}{}
-
-	setStr(flags, params, "filter", "filterType")
-	if params["filterType"] != "error" {
-		t.Errorf("setStr: got %v, want 'error'", params["filterType"])
+func TestBuildParams_StringParsing(t *testing.T) {
+	p, err := buildParams([]string{"--filter", "error"}, nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
 	}
+	if p["filter"] != "error" {
+		t.Errorf("expected filter=error, got %v", p["filter"])
+	}
+}
 
-	setStr(flags, params, "missing", "noop")
-	if _, ok := params["noop"]; ok {
-		t.Error("setStr: should skip missing flag")
+func TestBuildParams_BaseParams(t *testing.T) {
+	p, err := buildParams([]string{"--depth", "5"}, map[string]interface{}{"action": "hierarchy"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if p["action"] != "hierarchy" {
+		t.Errorf("expected action=hierarchy, got %v", p["action"])
+	}
+	if p["depth"] != 5 {
+		t.Errorf("expected depth=5, got %v", p["depth"])
 	}
 }
 

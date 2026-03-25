@@ -5,39 +5,29 @@ CLI tool to control Unity Editor from the command line.
 ## Structure
 
 ```
-cmd/                  # Go CLI commands (manual dispatch, no cobra)
-  root.go             # Entry point, flag parsing, sendFn injection
-  *.go                # Commands: console, editor, exec, menu, profiler, reserialize, status, update
-  *_test.go           # Unit tests in the same package
+cmd/                  # Go CLI — thin passthrough layer
+  root.go             # Entry point, flag/arg parsing, default passthrough
+  editor.go           # editor command (waitForReady polling)
+  test.go             # test command (PlayMode result polling)
+  status.go           # status, waitForAlive, heartbeat reading
+  update.go           # self-update from GitHub releases
+  version_check.go    # periodic update notice (12h interval)
 internal/client/      # Unity HTTP client, instance discovery
 unity-connector/      # C# Unity Editor package (UPM)
   Editor/
-    Core/             # Shared utilities (Response, ParamCoercion, StringCase)
+    Core/             # Shared utilities (Response, ParamCoercion, ToolParams, StringCaseUtility)
     Tools/            # Tool implementations (auto-registered via [UnityCliTool] attribute)
+    TestRunner/       # Test runner (RunTests, TestRunnerState)
 ```
 
 ## Development
 
 ### Adding a Command
 
-1. Create `cmd/{name}.go`
-2. Implement `{name}Cmd(args []string, send sendFn)`
-3. Register in the dispatch switch in `cmd/root.go`
-4. Add a corresponding C# tool in `unity-connector/Editor/Tools/` with `[UnityCliTool]`
-
-### sendFn Pattern
-
-All command functions receive a `sendFn` instead of calling Unity directly.
-This decouples them from the HTTP layer so they can be unit tested with a mock.
-
-```go
-type sendFn func(command string, params interface{}) (*client.CommandResponse, error)
-```
-
-### Flag Parsing
-
-- Global flags (`--port`, `--project`, `--timeout`): separated by `splitArgs()`, parsed by `flag.CommandLine`
-- Subcommand flags (`--wait`, `--filter`, etc.): parsed by `parseSubFlags()`
+1. Add a C# tool in `unity-connector/Editor/Tools/` with `[UnityCliTool(Name = "command_name")]`
+2. CLI command name matches the tool name — default passthrough handles dispatch
+3. Positional args arrive as `args` array, flags as named params
+4. Go-side code is only needed for polling/waiting logic (editor, test)
 
 ## Verification
 

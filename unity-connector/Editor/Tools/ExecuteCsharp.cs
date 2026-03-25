@@ -12,7 +12,7 @@ using UnityEngine;
 
 namespace UnityCliConnector.Tools
 {
-    [UnityCliTool(Description = "Execute arbitrary C# code at runtime. Full access to Unity and all loaded assemblies.")]
+    [UnityCliTool(Name = "exec", Description = "Execute arbitrary C# code at runtime. Full access to Unity and all loaded assemblies.")]
     public static class ExecuteCsharp
     {
         private static readonly string[] DefaultUsings =
@@ -36,11 +36,21 @@ namespace UnityCliConnector.Tools
 
         public static object HandleCommand(JObject parameters)
         {
-            var code = parameters["code"]?.Value<string>();
+            var p = new ToolParams(parameters);
+            var code = p.Get("code")
+                ?? (p.GetRaw("args") as JArray)?[0]?.ToString();
             if (string.IsNullOrEmpty(code))
                 return new ErrorResponse("'code' required");
 
-            var extraUsings = parameters["usings"]?.ToObject<string[]>();
+            var usingsToken = p.GetRaw("usings");
+            string[] extraUsings = null;
+            if (usingsToken != null)
+            {
+                if (usingsToken.Type == JTokenType.Array)
+                    extraUsings = usingsToken.ToObject<string[]>();
+                else
+                    extraUsings = usingsToken.ToString().Split(',');
+            }
 
             if (Regex.IsMatch(code, @"\breturn\b") == false)
             {
