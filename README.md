@@ -96,7 +96,7 @@ unity-cli editor play --wait
 unity-cli exec "return Application.dataPath;"
 
 # Read console logs
-unity-cli console --filter error,warning,log
+unity-cli console --type error,warning,log
 ```
 
 ## How It Works
@@ -187,7 +187,7 @@ unity-cli console
 unity-cli console --lines 20 --filter error,warning,log
 
 # Read only errors
-unity-cli console --filter error
+unity-cli console --type error
 
 # Include stack traces (short: filtered, full: raw)
 unity-cli console --stacktrace short

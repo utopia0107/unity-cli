@@ -52,6 +52,27 @@ go test -tags integration ./...
 
 CI skips these since Unity is not available.
 
+## Checklist
+
+### 변경 시
+
+CLI option, command, parameter를 수정하면 관련된 모든 곳을 함께 반영한다:
+- C# tool (Parameters class, HandleCommand)
+- Go help text (root.go의 overview + command별 detailed help)
+- README.md, README.ko.md
+
+### 배포 시
+
+- unity-connector package.json 버전 갱신
+- Go side 버전 태그 (vX.Y.Z)
+- CI 전체 통과 확인 후 태그 push
+
+### 작업 마무리 시
+
+- Verification 항목 전부 실행
+- 로컬 임시 파일(테스트용 스크립트, 디버깅 출력 등) 정리
+- 관련 없는 변경은 별도 커밋으로 분리
+
 ## Git
 
 Commit all unstaged changes before finishing. Unrelated changes should be committed separately.
