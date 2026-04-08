@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"time"
 )
@@ -152,8 +153,9 @@ func DiscoverInstance(project string, port int) (*Instance, error) {
 	}
 
 	if project != "" {
+		projectNorm := normalizeProjectPath(project)
 		for _, inst := range alive {
-			if strings.Contains(inst.ProjectPath, project) {
+			if strings.Contains(normalizeProjectPath(inst.ProjectPath), projectNorm) {
 				return &inst, nil
 			}
 		}
@@ -179,6 +181,20 @@ func DiscoverInstance(project string, port int) (*Instance, error) {
 		}
 	}
 	return &best, nil
+}
+
+// normalizeProjectPath makes project path matching stable across platforms.
+// It normalizes slashes, trims trailing separators, and on Windows lowercases
+// the path so --project matching is case-insensitive.
+func normalizeProjectPath(path string) string {
+	normalized := filepath.ToSlash(strings.TrimSpace(path))
+	for len(normalized) > 1 && strings.HasSuffix(normalized, "/") {
+		normalized = strings.TrimSuffix(normalized, "/")
+	}
+	if runtime.GOOS == "windows" {
+		normalized = strings.ToLower(normalized)
+	}
+	return normalized
 }
 
 func Send(inst *Instance, command string, params interface{}, timeoutMs int) (*CommandResponse, error) {

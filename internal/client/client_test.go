@@ -18,9 +18,13 @@ func stubIsProcessDead(t *testing.T, deadPIDs map[int]bool) {
 	t.Cleanup(func() { isProcessDead = orig })
 }
 
+// writeInstanceFiles creates isolated instance files and points both HOME and
+// USERPROFILE to the temp directory so tests never read real local instances.
 func writeInstanceFiles(t *testing.T, files map[string]Instance) string {
 	t.Helper()
 	home := t.TempDir()
+	t.Setenv("HOME", home)
+	t.Setenv("USERPROFILE", home)
 	dir := filepath.Join(home, ".unity-cli", "instances")
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		t.Fatalf("failed to create instances dir: %v", err)
@@ -272,5 +276,55 @@ func TestScanInstances_KeepsZeroPID(t *testing.T) {
 	}
 	if len(instances) != 1 {
 		t.Fatalf("expected 1 instance, got %d", len(instances))
+	}
+}
+
+// TestDiscoverInstance_ProjectPathMatchesSlashVariants verifies --project can
+// match Windows-style backslashes against Unity's forward-slash projectPath.
+func TestDiscoverInstance_ProjectPathMatchesSlashVariants(t *testing.T) {
+	stubIsProcessDead(t, map[int]bool{})
+
+	home := writeInstanceFiles(t, map[string]Instance{
+		"project.json": {
+			State:       "ready",
+			ProjectPath: "E:/GamerAworlD",
+			Port:        8090,
+			PID:         100,
+			Timestamp:   1000,
+		},
+	})
+	t.Setenv("HOME", home)
+
+	got, err := DiscoverInstance(`E:\GamerAworlD`, 0)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got.ProjectPath != "E:/GamerAworlD" {
+		t.Errorf("ProjectPath: got %q, want %q", got.ProjectPath, "E:/GamerAworlD")
+	}
+}
+
+// TestDiscoverInstance_ProjectPathMatchesCaseInsensitiveOnWindows verifies
+// --project matching ignores path letter casing on Windows.
+func TestDiscoverInstance_ProjectPathMatchesCaseInsensitiveOnWindows(t *testing.T) {
+	stubIsProcessDead(t, map[int]bool{})
+
+	home := writeInstanceFiles(t, map[string]Instance{
+		"project.json": {
+			State:       "ready",
+			ProjectPath: "E:/GamerAworlD",
+			Port:        8090,
+			PID:         100,
+			Timestamp:   1000,
+		},
+	})
+	t.Setenv("HOME", home)
+
+	got, err := DiscoverInstance("e:/gameraworld", 0)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got.ProjectPath != "E:/GamerAworlD" {
+		t.Errorf("ProjectPath: got %q, want %q", got.ProjectPath, "E:/GamerAworlD")
 	}
 }
