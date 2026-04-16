@@ -239,7 +239,21 @@ namespace UnityCliConnector.Tools
 
             var name = "dotnet" + (Application.platform == RuntimePlatform.WindowsEditor ? ".exe" : "");
             var found = SearchFile(EditorApplication.applicationContentsPath, name);
-            return found ?? name;
+            if (found != null) return found;
+
+            if (Application.platform != RuntimePlatform.WindowsEditor)
+            {
+                var macPaths = new[]
+                {
+                    "/usr/local/share/dotnet/dotnet",
+                    "/opt/homebrew/bin/dotnet",
+                    "/usr/local/bin/dotnet",
+                };
+                foreach (var p in macPaths)
+                    if (File.Exists(p)) return p;
+            }
+
+            return name;
         }
 
         private static string FormatErrors(string raw)
