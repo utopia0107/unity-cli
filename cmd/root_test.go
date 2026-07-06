@@ -70,6 +70,13 @@ func TestSplitArgs(t *testing.T) {
 		{"ignore version mismatch flag", []string{"exec", "--ignore-version-mismatch", "Time.time"}, []string{"--ignore-version-mismatch"}, []string{"exec", "Time.time"}},
 		{"ignore version mismatch value", []string{"status", "--ignore-version-mismatch=true"}, []string{"--ignore-version-mismatch=true"}, []string{"status"}},
 		{"multiple global flags", []string{"--project", "myproj", "--timeout", "3000", "exec", "code"}, []string{"--project", "myproj", "--timeout", "3000"}, []string{"exec", "code"}},
+		{"project equals form", []string{"--project=myproj", "status"}, []string{"--project=myproj"}, []string{"status"}},
+		{"timeout equals form", []string{"exec", "--timeout=5000", "Time.time"}, []string{"--timeout=5000"}, []string{"exec", "Time.time"}},
+		{"mixed equals and space forms", []string{"--project=myproj", "--timeout", "3000", "editor", "play"}, []string{"--project=myproj", "--timeout", "3000"}, []string{"editor", "play"}},
+		{"equals form after command", []string{"editor", "play", "--project=myproj"}, []string{"--project=myproj"}, []string{"editor", "play"}},
+		{"empty equals value", []string{"--project=", "status"}, []string{"--project="}, []string{"status"}},
+		{"non-global equals flag stays in commands", []string{"test", "--filter=MyTests"}, nil, []string{"test", "--filter=MyTests"}},
+		{"non-global flag stays in commands", []string{"console", "--lines", "20"}, nil, []string{"console", "--lines", "20"}},
 	}
 
 	for _, tt := range tests {

@@ -406,23 +406,42 @@ func readStdinIfPiped(args []string) []string {
 	return append([]string{code}, args...)
 }
 
+// globalFlagSpec maps each global flag name to whether it takes a value.
+var globalFlagSpec = map[string]bool{
+	"project":                 true,
+	"timeout":                 true,
+	"ignore-version-mismatch": false,
+}
+
 // splitArgs separates global flags from subcommand args.
 // Global flags must be parsed by flag.CommandLine before the subcommand runs.
+// Both "--name value" and "--name=value" forms are recognized.
 func splitArgs(args []string) (flags, commands []string) {
 	for i := 0; i < len(args); i++ {
-		switch args[i] {
-		case "--ignore-version-mismatch":
-			flags = append(flags, args[i])
-		case "--ignore-version-mismatch=true", "--ignore-version-mismatch=false":
-			flags = append(flags, args[i])
-		case "--project", "--timeout":
-			flags = append(flags, args[i])
-			if i+1 < len(args) {
-				i++
-				flags = append(flags, args[i])
+		a := args[i]
+		if !strings.HasPrefix(a, "--") {
+			commands = append(commands, a)
+			continue
+		}
+		name := strings.TrimPrefix(a, "--")
+		if eq := strings.Index(name, "="); eq >= 0 {
+			name = name[:eq]
+			if _, ok := globalFlagSpec[name]; ok {
+				flags = append(flags, a)
+			} else {
+				commands = append(commands, a)
 			}
-		default:
-			commands = append(commands, args[i])
+			continue
+		}
+		takesValue, ok := globalFlagSpec[name]
+		if !ok {
+			commands = append(commands, a)
+			continue
+		}
+		flags = append(flags, a)
+		if takesValue && i+1 < len(args) {
+			i++
+			flags = append(flags, args[i])
 		}
 	}
 	return
