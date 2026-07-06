@@ -99,6 +99,16 @@ unity-cli exec "return Application.dataPath;"
 unity-cli console --type error,warning,log
 ```
 
+## AI 에이전트용 설정
+
+`unity-cli help agents`는 전체 명령 카탈로그, JSON 출력 계약, 종료 코드, 대표 워크플로를 담은 붙여넣기용 마크다운 가이드를 출력합니다. CLI 자체에서 생성되므로 문서가 코드와 어긋나지 않습니다. Unity 프로젝트의 에이전트 지침 파일에 추가하세요:
+
+```bash
+unity-cli help agents >> CLAUDE.md    # 또는 AGENTS.md
+```
+
+이후 해당 프로젝트에서 작업하는 AI 에이전트는 이 CLI로 컴파일, 테스트, 로그 확인, C# 실행 방법을 알게 됩니다.
+
 ## 동작 방식
 
 ```

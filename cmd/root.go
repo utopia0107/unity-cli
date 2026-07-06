@@ -485,6 +485,8 @@ func printHelp() {
 
 func printTopicHelp(topic string) {
 	switch topic {
+	case "agents", "agent", "ai":
+		fmt.Print(renderAgentsGuide())
 	case "custom-tools", "custom", "tools":
 		fmt.Print(customToolsHelp)
 	case "setup", "install":

@@ -99,6 +99,16 @@ unity-cli exec "return Application.dataPath;"
 unity-cli console --type error,warning,log
 ```
 
+## For AI Agents
+
+`unity-cli help agents` prints a paste-ready markdown guide — the full command catalog, JSON output contract, exit codes, and typical workflows — generated from the CLI itself so it never drifts. Append it to your Unity project's agent instructions:
+
+```bash
+unity-cli help agents >> CLAUDE.md    # or AGENTS.md
+```
+
+From then on, any AI agent working in that project knows how to compile, test, inspect logs, and run C# in the Unity Editor through this CLI.
+
 ## How It Works
 
 ```

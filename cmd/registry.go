@@ -498,6 +498,85 @@ func renderCommandsText() string {
 	return b.String()
 }
 
+// renderAgentsGuide generates a paste-ready markdown snippet for the end
+// user's project CLAUDE.md / AGENTS.md, teaching an AI agent the full CLI
+// contract: commands, output envelope, exit codes, and typical workflows.
+func renderAgentsGuide() string {
+	var b strings.Builder
+	b.WriteString(`# Unity control via unity-cli
+
+Unity Editor is controlled from the shell with ` + "`unity-cli`" + ` (CLI alternative to MCP).
+Unity must be open with the Connector package installed. Results go to stdout,
+errors and progress messages to stderr.
+
+## Machine-readable output
+
+Add ` + "`--json`" + ` to any command: exactly one JSON envelope is written to stdout,
+success or failure, even when Unity is not running:
+
+` + "```json" + `
+{"success": true, "message": "OK", "data": {}, "exitCode": 0}
+{"success": false, "message": "no Unity instances running", "error": {"class": "connection"}, "exitCode": 3}
+` + "```" + `
+
+## Exit codes / error.class
+
+| Code | Class | Meaning |
+|------|-------|---------|
+`)
+	for _, ec := range exitCodeDocs {
+		class := ec.Class
+		if class == "" {
+			class = "—"
+		}
+		fmt.Fprintf(&b, "| %d | %s | %s |\n", ec.Code, class, ec.Meaning)
+	}
+
+	b.WriteString("\n## Commands\n\n")
+	groups := commandsByGroup()
+	for _, group := range groupOrder {
+		for _, c := range groups[group] {
+			fmt.Fprintf(&b, "- `%s` — %s", c.usageToken(), c.Summary)
+			if len(c.Examples) > 0 {
+				fmt.Fprintf(&b, " (e.g. `%s`)", c.Examples[0])
+			}
+			b.WriteString("\n")
+		}
+	}
+
+	b.WriteString("\n## Global flags\n\n")
+	for _, f := range globalFlagDocs {
+		head := "--" + f.Name
+		if f.Value != "" {
+			head += " " + f.Value
+		}
+		fmt.Fprintf(&b, "- `%s` — %s", head, f.Description)
+		if f.Default != "" {
+			fmt.Fprintf(&b, " (default: %s)", f.Default)
+		}
+		b.WriteString("\n")
+	}
+
+	b.WriteString(`
+## Typical workflows
+
+- After editing C# files: ` + "`unity-cli editor refresh --compile`" + ` — waits for
+  compilation; on failure, inspect ` + "`unity-cli console --type error`" + `
+- Run tests: ` + "`unity-cli test`" + ` (EditMode) or ` + "`unity-cli test --mode PlayMode`" + `
+- After editing .prefab/.unity/.asset/.mat files as text: ` + "`unity-cli reserialize <path>`" + `
+- Arbitrary C# in the editor: ` + "`echo 'return EditorSceneManager.GetActiveScene().name;' | unity-cli exec`" + `
+- Visual check: ` + "`unity-cli screenshot --view game`" + `
+- Check editor state first when commands fail: ` + "`unity-cli status`" + `
+
+## Discovery
+
+- ` + "`unity-cli commands --json`" + ` — full command manifest (works offline)
+- ` + "`unity-cli list`" + ` — live tool schemas, including project-specific [UnityCliTool] tools;
+  call custom tools directly: ` + "`unity-cli <tool_name> --key value`" + `
+`)
+	return b.String()
+}
+
 // registryNames returns all registered command names, sorted.
 func registryNames() []string {
 	names := make([]string, 0, len(commandRegistry))

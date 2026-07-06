@@ -106,6 +106,20 @@ func TestManifestRoundTrips(t *testing.T) {
 	}
 }
 
+func TestAgentsGuideCoversContract(t *testing.T) {
+	guide := renderAgentsGuide()
+	for _, c := range commandRegistry {
+		if !strings.Contains(guide, "`"+c.usageToken()+"`") {
+			t.Errorf("agents guide missing command %q", c.Name)
+		}
+	}
+	for _, want := range []string{"--json", "exitCode", "command_failed", "connection", "version_mismatch", "timeout", "usage", "unity-cli commands --json", "unity-cli list"} {
+		if !strings.Contains(guide, want) {
+			t.Errorf("agents guide missing %q", want)
+		}
+	}
+}
+
 func TestCommandsTextShowsConnectorMapping(t *testing.T) {
 	text := renderCommandsText()
 	if !strings.Contains(text, "manage_editor") {
