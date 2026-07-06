@@ -3,7 +3,6 @@ package cmd
 import (
 	"fmt"
 	"os"
-	"runtime"
 	"strings"
 	"time"
 
@@ -41,13 +40,13 @@ func statusInstances(project string) ([]client.Instance, error) {
 	}
 
 	var result []client.Instance
-	projectNorm := normalizeStatusProjectPath(project)
+	projectNorm := client.NormalizeProjectPath(project)
 	for _, inst := range instances {
 		if inst.Timestamp <= 0 {
 			continue
 		}
 		if projectNorm != "" {
-			instNorm := normalizeStatusProjectPath(inst.ProjectPath)
+			instNorm := client.NormalizeProjectPath(inst.ProjectPath)
 			if instNorm != projectNorm && !strings.Contains(instNorm, projectNorm) {
 				continue
 			}
@@ -58,14 +57,6 @@ func statusInstances(project string) ([]client.Instance, error) {
 		return nil, fmt.Errorf("no Unity instance found for project: %s", project)
 	}
 	return result, nil
-}
-
-func normalizeStatusProjectPath(path string) string {
-	normalized := strings.TrimRight(strings.ReplaceAll(path, "\\", "/"), "/")
-	if runtime.GOOS == "windows" {
-		normalized = strings.ToLower(normalized)
-	}
-	return normalized
 }
 
 func printStatus(status *client.Instance) {

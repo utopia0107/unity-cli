@@ -554,7 +554,7 @@ func TestDiscoverInstance_UsesCwdProjectMatch(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if normalizeProjectPath(got.ProjectPath) != normalizeProjectPath(filepath.Dir(cwd)) {
+	if NormalizeProjectPath(got.ProjectPath) != NormalizeProjectPath(filepath.Dir(cwd)) {
 		t.Errorf("ProjectPath: got %q, want %q", got.ProjectPath, filepath.Dir(cwd))
 	}
 }

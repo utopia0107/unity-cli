@@ -38,6 +38,9 @@ func TestParseSubFlags(t *testing.T) {
 		{"mixed", []string{"--filter", "error", "--wait", "--clear"}, map[string]string{"filter": "error", "wait": "true", "clear": "true"}},
 		{"consecutive boolean flags", []string{"--wait", "--clear"}, map[string]string{"wait": "true", "clear": "true"}},
 		{"non-flag args ignored", []string{"play", "--wait"}, map[string]string{"wait": "true"}},
+		{"equals form", []string{"--mode=PlayMode"}, map[string]string{"mode": "PlayMode"}},
+		{"equals form mixed", []string{"--mode=PlayMode", "--filter", "MyTests", "--wait"}, map[string]string{"mode": "PlayMode", "filter": "MyTests", "wait": "true"}},
+		{"empty equals value", []string{"--filter="}, map[string]string{"filter": ""}},
 	}
 
 	for _, tt := range tests {

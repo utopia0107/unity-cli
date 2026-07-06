@@ -11,7 +11,7 @@ cmd/                  # Go CLI — thin passthrough layer
   test.go             # test command (PlayMode result polling)
   status.go           # status, waitForAlive, heartbeat reading
   update.go           # self-update from GitHub releases
-  version_check.go    # periodic update notice (12h interval)
+  version_check.go    # periodic update notice (1h interval)
 internal/client/      # Unity HTTP client, instance discovery
 unity-connector/      # C# Unity Editor package (UPM)
   Editor/

@@ -147,11 +147,11 @@ func DiscoverInstance(project string) (*Instance, error) {
 	}
 
 	if project != "" {
-		projectNorm := normalizeProjectPath(project)
+		projectNorm := NormalizeProjectPath(project)
 		var exact []int
 		var matches []int
 		for i, inst := range alive {
-			instNorm := normalizeProjectPath(inst.ProjectPath)
+			instNorm := NormalizeProjectPath(inst.ProjectPath)
 			if instNorm == projectNorm {
 				exact = append(exact, i)
 				continue
@@ -182,9 +182,9 @@ func DiscoverInstance(project string) (*Instance, error) {
 	// Try to match by current working directory before accepting a sole active instance.
 	// Symlinks are resolved on both sides so paths like macOS /var → /private/var compare equal.
 	if cwd, err := os.Getwd(); err == nil {
-		cwdNorm := normalizeProjectPath(resolveSymlinks(cwd))
+		cwdNorm := NormalizeProjectPath(resolveSymlinks(cwd))
 		for i, inst := range alive {
-			projNorm := normalizeProjectPath(resolveSymlinks(inst.ProjectPath))
+			projNorm := NormalizeProjectPath(resolveSymlinks(inst.ProjectPath))
 			if cwdNorm == projNorm || strings.HasPrefix(cwdNorm, projNorm+"/") {
 				return &alive[i], nil
 			}
@@ -210,8 +210,11 @@ func resolveSymlinks(path string) string {
 	return path
 }
 
-func normalizeProjectPath(path string) string {
-	normalized := strings.TrimRight(filepath.ToSlash(path), "/")
+// NormalizeProjectPath normalizes a project path for comparison:
+// backslashes become slashes, trailing slashes are trimmed, and
+// Windows paths are lowercased.
+func NormalizeProjectPath(path string) string {
+	normalized := strings.TrimRight(strings.ReplaceAll(path, "\\", "/"), "/")
 	if runtime.GOOS == "windows" {
 		normalized = strings.ToLower(normalized)
 	}
@@ -283,7 +286,7 @@ func Health(inst *Instance, timeoutMs int) (*Instance, error) {
 	if !result.Data.Ready || result.Data.ProjectPath == "" || result.Data.PID == 0 || result.Data.Timestamp == 0 {
 		return nil, errors.New("unity health endpoint is not ready")
 	}
-	if inst.ProjectPath != "" && normalizeProjectPath(result.Data.ProjectPath) != normalizeProjectPath(inst.ProjectPath) {
+	if inst.ProjectPath != "" && NormalizeProjectPath(result.Data.ProjectPath) != NormalizeProjectPath(inst.ProjectPath) {
 		return nil, fmt.Errorf("unity health project mismatch: expected %s, got %s", inst.ProjectPath, result.Data.ProjectPath)
 	}
 	return &result.Data, nil

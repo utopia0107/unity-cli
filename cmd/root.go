@@ -150,40 +150,13 @@ var (
 )
 
 func resolveReady(resolve instanceResolver, timeoutMs int) (*client.Instance, error) {
-	deadline := commandDeadline(timeoutMs)
-	var lastErr error
-	for {
-		inst, err := resolve()
-		if err != nil {
-			lastErr = err
-			if !sleepUntilNextPoll(deadline) {
-				break
-			}
-			continue
-		}
-		if err := checkConnectorVersion(inst, Version, flagIgnoreVersionMismatch); err != nil {
-			return nil, err
-		}
-		health, err := healthCheck(inst, probeTimeoutMs(deadline))
-		if err == nil {
-			return health, nil
-		}
-		if flagIgnoreVersionMismatch && errors.Is(err, client.ErrHealthEndpointUnavailable) {
-			return inst, nil
-		}
-		lastErr = err
-		if !sleepUntilNextPoll(deadline) {
-			break
-		}
-	}
-	if lastErr != nil {
-		return nil, fmt.Errorf("timed out waiting for Unity listener: %w", lastErr)
-	}
-	return nil, fmt.Errorf("timed out waiting for Unity listener")
+	return resolveReadyUntil(resolve, commandDeadline(timeoutMs))
 }
 
-func sendWithRetry(resolve instanceResolver, command string, params interface{}, timeoutMs int) (*client.CommandResponse, error) {
-	deadline := commandDeadline(timeoutMs)
+// resolveReadyUntil polls resolve → version check → health until the listener is
+// ready or the deadline passes. With --ignore-version-mismatch, a missing health
+// endpoint (legacy connector) falls back to the raw heartbeat instance.
+func resolveReadyUntil(resolve instanceResolver, deadline time.Time) (*client.Instance, error) {
 	var lastErr error
 	for {
 		inst, err := resolve()
@@ -197,14 +170,10 @@ func sendWithRetry(resolve instanceResolver, command string, params interface{},
 		if err := checkConnectorVersion(inst, Version, flagIgnoreVersionMismatch); err != nil {
 			return nil, err
 		}
-		health, err := healthCheck(inst, probeTimeoutMs(deadline))
+		health, err := healthCheck(inst, remainingMs(deadline, time.Second))
 		if err != nil {
 			if flagIgnoreVersionMismatch && errors.Is(err, client.ErrHealthEndpointUnavailable) {
-				resp, sendErr := sendCommand(inst, command, params, commandTimeoutMs(deadline))
-				if sendErr == nil {
-					return resp, nil
-				}
-				return nil, fmt.Errorf("failed sending command to Unity: %w", sendErr)
+				return inst, nil
 			}
 			lastErr = err
 			if !sleepUntilNextPoll(deadline) {
@@ -215,16 +184,25 @@ func sendWithRetry(resolve instanceResolver, command string, params interface{},
 		if err := checkConnectorVersion(health, Version, flagIgnoreVersionMismatch); err != nil {
 			return nil, err
 		}
-		resp, err := sendCommand(health, command, params, commandTimeoutMs(deadline))
-		if err == nil {
-			return resp, nil
-		}
-		return nil, fmt.Errorf("failed sending command to Unity: %w", err)
+		return health, nil
 	}
 	if lastErr != nil {
-		return nil, fmt.Errorf("timed out sending command to Unity: %w", lastErr)
+		return nil, fmt.Errorf("timed out waiting for Unity listener: %w", lastErr)
 	}
-	return nil, fmt.Errorf("timed out sending command to Unity")
+	return nil, fmt.Errorf("timed out waiting for Unity listener")
+}
+
+func sendWithRetry(resolve instanceResolver, command string, params interface{}, timeoutMs int) (*client.CommandResponse, error) {
+	deadline := commandDeadline(timeoutMs)
+	inst, err := resolveReadyUntil(resolve, deadline)
+	if err != nil {
+		return nil, err
+	}
+	resp, err := sendCommand(inst, command, params, remainingMs(deadline, 0))
+	if err != nil {
+		return nil, fmt.Errorf("failed sending command to Unity: %w", err)
+	}
+	return resp, nil
 }
 
 func commandDeadline(timeoutMs int) time.Time {
@@ -234,25 +212,12 @@ func commandDeadline(timeoutMs int) time.Time {
 	return time.Now().Add(time.Duration(timeoutMs) * time.Millisecond)
 }
 
-func probeTimeoutMs(deadline time.Time) int {
+// remainingMs returns the milliseconds left until deadline, at least 1,
+// optionally capped (maxWait > 0) for short probe requests.
+func remainingMs(deadline time.Time, maxWait time.Duration) int {
 	remaining := time.Until(deadline)
-	if remaining <= 0 {
-		return 1
-	}
-	if remaining > time.Second {
-		return 1000
-	}
-	ms := int(remaining / time.Millisecond)
-	if ms < 1 {
-		return 1
-	}
-	return ms
-}
-
-func commandTimeoutMs(deadline time.Time) int {
-	remaining := time.Until(deadline)
-	if remaining <= 0 {
-		return 1
+	if maxWait > 0 && remaining > maxWait {
+		remaining = maxWait
 	}
 	ms := int(remaining / time.Millisecond)
 	if ms < 1 {
@@ -306,22 +271,34 @@ func printResponse(resp *client.CommandResponse) {
 	}
 }
 
-// parseSubFlags parses --key value and --flag (boolean) pairs from subcommand args.
-// Non-flag args (no "--" prefix) are silently ignored.
-func parseSubFlags(args []string) map[string]string {
-	flags := map[string]string{}
+// parseFlagsAndArgs parses --key value, --key=value, and --flag (boolean) pairs
+// plus positional args from subcommand args.
+func parseFlagsAndArgs(args []string) (flags map[string]string, positional []string) {
+	flags = map[string]string{}
 	for i := 0; i < len(args); i++ {
 		a := args[i]
-		if strings.HasPrefix(a, "--") {
-			key := a[2:]
-			if i+1 < len(args) && !strings.HasPrefix(args[i+1], "--") {
-				flags[key] = args[i+1]
-				i++
-			} else {
-				flags[key] = "true"
-			}
+		if !strings.HasPrefix(a, "--") {
+			positional = append(positional, a)
+			continue
+		}
+		key := a[2:]
+		if eq := strings.Index(key, "="); eq >= 0 {
+			flags[key[:eq]] = key[eq+1:]
+			continue
+		}
+		if i+1 < len(args) && !strings.HasPrefix(args[i+1], "--") {
+			flags[key] = args[i+1]
+			i++
+		} else {
+			flags[key] = "true"
 		}
 	}
+	return flags, positional
+}
+
+// parseSubFlags parses subcommand flags; positional args are silently ignored.
+func parseSubFlags(args []string) map[string]string {
+	flags, _ := parseFlagsAndArgs(args)
 	return flags
 }
 
@@ -332,22 +309,7 @@ func buildParams(args []string, base map[string]interface{}) (map[string]interfa
 		params[k] = v
 	}
 
-	var positional []string
-	flags := map[string]string{}
-	for i := 0; i < len(args); i++ {
-		a := args[i]
-		if strings.HasPrefix(a, "--") {
-			key := a[2:]
-			if i+1 < len(args) && !strings.HasPrefix(args[i+1], "--") {
-				flags[key] = args[i+1]
-				i++
-			} else {
-				flags[key] = "true"
-			}
-		} else {
-			positional = append(positional, a)
-		}
-	}
+	flags, positional := parseFlagsAndArgs(args)
 
 	if raw, ok := flags["params"]; ok {
 		if jsonErr := json.Unmarshal([]byte(raw), &params); jsonErr != nil {
