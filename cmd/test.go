@@ -52,6 +52,9 @@ func testCmd(args []string, send sendFn, resolve instanceResolver) (*client.Comm
 	if _, ok := flags["auto-save-scenes"]; ok {
 		params["autoSaveScenes"] = true
 	}
+	if v, ok := flags["timeout-sec"]; ok {
+		params["timeout_sec"] = v
+	}
 
 	resp, err := send("run_tests", params)
 	if err != nil {

@@ -34,7 +34,12 @@ namespace UnityCliConnector.TestRunner
 
             [ToolParameter("CLI-generated test run identifier")]
             public string RunId { get; set; }
+
+            [ToolParameter("EditMode run timeout in seconds (default 300). On expiry the request is released; the Unity test run may keep executing.")]
+            public int TimeoutSec { get; set; }
         }
+
+        private const int DefaultEditModeTimeoutSec = 300;
 
         public static Task<object> HandleCommand(JObject @params)
         {
@@ -64,14 +69,18 @@ namespace UnityCliConnector.TestRunner
                 return Task.FromResult<object>(dirtySceneResult);
 
             if (testMode == TestMode.EditMode)
-                return ExecuteInProcess(testMode, filter);
+            {
+                var timeoutSec = p.GetInt("timeout_sec", DefaultEditModeTimeoutSec).Value;
+                if (timeoutSec <= 0) timeoutSec = DefaultEditModeTimeoutSec;
+                return ExecuteInProcess(testMode, filter, timeoutSec);
+            }
 
             var runId = p.Get("runId", Guid.NewGuid().ToString("N"));
             StartPlayModeRun(filter, runId);
             return Task.FromResult<object>(new SuccessResponse("running", new { runId }));
         }
 
-        private static Task<object> ExecuteInProcess(TestMode mode, string filter)
+        private static Task<object> ExecuteInProcess(TestMode mode, string filter, int timeoutSec)
         {
             var tcs = new TaskCompletionSource<object>(TaskCreationOptions.RunContinuationsAsynchronously);
             var passed  = new List<string>();
@@ -89,7 +98,29 @@ namespace UnityCliConnector.TestRunner
                 }
             );
 
+            // Watchdog: a hung run must not hold the request (and the global
+            // command semaphore) forever. TestRunnerApi has no reliable cancel,
+            // so on expiry we release the request; the run may keep executing.
+            var start = DateTime.UtcNow;
+            void Watchdog()
+            {
+                if (tcs.Task.IsCompleted)
+                {
+                    UnityEditor.EditorApplication.update -= Watchdog;
+                    return;
+                }
+                if ((DateTime.UtcNow - start).TotalSeconds < timeoutSec) return;
+
+                UnityEditor.EditorApplication.update -= Watchdog;
+                try { api.UnregisterCallbacks(callbacks); } catch { }
+                Object.DestroyImmediate(api);
+                tcs.TrySetResult(new ErrorResponse(
+                    $"EditMode test run timed out after {timeoutSec}s. The Unity test run may still be executing.",
+                    new { code = "test_timeout" }));
+            }
+
             api.RegisterCallbacks(callbacks);
+            UnityEditor.EditorApplication.update += Watchdog;
             api.Execute(new ExecutionSettings(BuildFilter(mode, filter)));
             return tcs.Task;
         }

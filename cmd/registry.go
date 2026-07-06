@@ -165,6 +165,7 @@ Default usings: System, System.Collections.Generic, System.IO, System.Linq,
 			{Name: "filter", Value: "<name>", Description: "Filter by namespace, class, or full test name (full path, e.g. MyNamespace.MyClass)"},
 			{Name: "allow-dirty-scenes", Description: "Run even when open scenes have unsaved changes"},
 			{Name: "auto-save-scenes", Description: "Save dirty open scenes before running tests"},
+			{Name: "timeout-sec", Value: "<sec>", Description: "EditMode run timeout; on expiry the request is released with a test_timeout error", Default: "300"},
 		},
 		Examples: []string{
 			"unity-cli test",
