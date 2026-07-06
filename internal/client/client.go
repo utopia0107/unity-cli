@@ -156,10 +156,11 @@ func DiscoverInstance(project string) (*Instance, error) {
 	}
 
 	// Try to match by current working directory before accepting a sole active instance.
+	// Symlinks are resolved on both sides so paths like macOS /var → /private/var compare equal.
 	if cwd, err := os.Getwd(); err == nil {
-		cwdNorm := normalizeProjectPath(cwd)
+		cwdNorm := normalizeProjectPath(resolveSymlinks(cwd))
 		for i, inst := range alive {
-			projNorm := normalizeProjectPath(inst.ProjectPath)
+			projNorm := normalizeProjectPath(resolveSymlinks(inst.ProjectPath))
 			if cwdNorm == projNorm || strings.HasPrefix(cwdNorm, projNorm+"/") {
 				return &alive[i], nil
 			}
@@ -175,6 +176,14 @@ func DiscoverInstance(project string) (*Instance, error) {
 		projects = append(projects, fmt.Sprintf("  %s", inst.ProjectPath))
 	}
 	return nil, fmt.Errorf("multiple Unity instances running; use --project:\n%s", strings.Join(projects, "\n"))
+}
+
+// resolveSymlinks resolves symlinks when the path exists; otherwise returns the path unchanged.
+func resolveSymlinks(path string) string {
+	if resolved, err := filepath.EvalSymlinks(path); err == nil {
+		return resolved
+	}
+	return path
 }
 
 func normalizeProjectPath(path string) string {
