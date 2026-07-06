@@ -341,6 +341,7 @@ The CLI also checks Unity's state automatically before sending any command. If U
 |------|-------------|---------|
 | `--project <path>` | Select Unity instance by project path | auto |
 | `--timeout <ms>` | HTTP request timeout. When set explicitly, also bounds compile waits and PlayMode test polling (defaults: 5m / 10m) | 120000 |
+| `--json` | Emit one machine-readable JSON envelope on stdout | false |
 | `--ignore-version-mismatch` | Skip CLI/connector version check | false |
 
 ```bash
@@ -358,6 +359,36 @@ unity-cli editor --help
 unity-cli exec --help
 unity-cli profiler --help
 ```
+
+## Machine-Readable Output (`--json`)
+
+With `--json`, every run writes exactly one JSON envelope to stdout — success or failure, even when Unity is not running. Progress messages stay on stderr, so stdout is always parseable:
+
+```bash
+unity-cli --json exec "return 1+1;"
+```
+
+```json
+{
+  "success": true,
+  "message": "OK",
+  "data": 2,
+  "exitCode": 0
+}
+```
+
+On failure, `error.class` mirrors the exit code so agents can branch on either:
+
+```json
+{
+  "success": false,
+  "message": "no Unity instances running",
+  "error": { "class": "connection" },
+  "exitCode": 3
+}
+```
+
+`error.class` is one of `usage`, `connection`, `version_mismatch`, `timeout`, `command_failed`.
 
 ## Exit Codes
 

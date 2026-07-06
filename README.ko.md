@@ -341,6 +341,7 @@ unity-cli status
 |--------|------|--------|
 | `--project <path>` | 프로젝트 경로로 Unity 인스턴스 선택 | auto |
 | `--timeout <ms>` | HTTP 요청 타임아웃. 명시적으로 지정하면 컴파일 대기와 PlayMode 테스트 폴링도 이 값으로 제한 (기본: 5m / 10m) | 120000 |
+| `--json` | 기계 판독용 JSON 봉투 하나를 stdout으로 출력 | false |
 | `--ignore-version-mismatch` | CLI/connector 버전 검사 생략 | false |
 
 ```bash
@@ -358,6 +359,36 @@ unity-cli editor --help
 unity-cli exec --help
 unity-cli profiler --help
 ```
+
+## 기계 판독 출력 (`--json`)
+
+`--json`을 붙이면 성공/실패와 무관하게 — Unity가 꺼져 있어도 — 정확히 하나의 JSON 봉투를 stdout으로 출력합니다. 진행 메시지는 stderr로 가므로 stdout은 항상 파싱 가능합니다:
+
+```bash
+unity-cli --json exec "return 1+1;"
+```
+
+```json
+{
+  "success": true,
+  "message": "OK",
+  "data": 2,
+  "exitCode": 0
+}
+```
+
+실패 시 `error.class`가 종료 코드와 1:1로 대응하므로 어느 쪽으로든 분기할 수 있습니다:
+
+```json
+{
+  "success": false,
+  "message": "no Unity instances running",
+  "error": { "class": "connection" },
+  "exitCode": 3
+}
+```
+
+`error.class`는 `usage`, `connection`, `version_mismatch`, `timeout`, `command_failed` 중 하나입니다.
 
 ## 종료 코드
 

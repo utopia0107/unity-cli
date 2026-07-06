@@ -27,14 +27,11 @@ func Execute() error {
 	flag.StringVar(&flagProject, "project", "", "Select Unity instance by project path")
 	flag.IntVar(&flagTimeout, "timeout", 120000, "Request timeout in milliseconds")
 	flag.BoolVar(&flagIgnoreVersionMismatch, "ignore-version-mismatch", false, "Skip CLI/connector version check")
+	flag.BoolVar(&flagJSON, "json", false, "Emit a machine-readable JSON envelope on stdout")
 
 	flag.Usage = func() { printHelp() }
 
 	args := os.Args[1:]
-	if err := rejectRemovedFlags(args); err != nil {
-		return withCode(ExitUsage, err)
-	}
-
 	flagArgs, cmdArgs := splitArgs(args)
 	if err := flag.CommandLine.Parse(flagArgs); err != nil {
 		return withCode(ExitUsage, fmt.Errorf("flag parse error: %w", err))
@@ -44,6 +41,16 @@ func Execute() error {
 			flagTimeoutSet = true
 		}
 	})
+
+	// In --json mode every outcome, including early failures, becomes an
+	// envelope on stdout; the exit code still reflects the failure class.
+	return finishErr(executeParsed(args, cmdArgs))
+}
+
+func executeParsed(args, cmdArgs []string) error {
+	if err := rejectRemovedFlags(args); err != nil {
+		return withCode(ExitUsage, err)
+	}
 
 	if len(cmdArgs) == 0 {
 		printHelp()
@@ -70,13 +77,14 @@ func Execute() error {
 		}
 		return nil
 	case "version", "--version", "-v":
-		fmt.Println("unity-cli " + Version)
-		return nil
+		return versionCmd()
 	case "update":
 		return updateCmd(subArgs)
 	case "status":
 		statusErr := statusCmd(flagProject, flagIgnoreVersionMismatch)
-		printUpdateNotice()
+		if !flagJSON {
+			printUpdateNotice()
+		}
 		return statusErr
 	}
 
@@ -133,15 +141,45 @@ func Execute() error {
 		return err
 	}
 
+	return finishResponse(resp)
+}
+
+func versionCmd() error {
+	if flagJSON {
+		data, _ := json.Marshal(map[string]string{"version": Version})
+		return emitEnvelope(&client.CommandResponse{Success: true, Message: "unity-cli " + Version, Data: data})
+	}
+	fmt.Println("unity-cli " + Version)
+	return nil
+}
+
+// finishResponse prints a command response in the active output mode.
+func finishResponse(resp *client.CommandResponse) error {
+	if flagJSON {
+		return emitEnvelope(resp)
+	}
 	printResponse(resp)
-
 	printUpdateNotice()
-
 	if !resp.Success {
 		return withCode(ExitCommandFailed, errReported)
 	}
-
 	return nil
+}
+
+// finishErr converts a not-yet-reported error into a JSON envelope when --json
+// is active, so stdout always carries exactly one envelope.
+func finishErr(err error) error {
+	if err == nil || !flagJSON || IsReported(err) {
+		return err
+	}
+	code := ExitCodeFor(err)
+	writeEnvelope(jsonEnvelope{
+		Success:  false,
+		Message:  err.Error(),
+		Error:    &jsonError{Class: errorClass(code)},
+		ExitCode: int(code),
+	})
+	return withCode(code, errReported)
 }
 
 // sendFn is the function signature for sending a command to Unity.
@@ -389,6 +427,7 @@ var globalFlagSpec = map[string]bool{
 	"project":                 true,
 	"timeout":                 true,
 	"ignore-version-mismatch": false,
+	"json":                    false,
 }
 
 // splitArgs separates global flags from subcommand args.
@@ -511,6 +550,10 @@ Global Options:
   --timeout <ms>      Request timeout in ms (default: 120000).
                       When set explicitly, also bounds compile waits and
                       PlayMode test polling (defaults: 5m / 10m).
+  --json              Emit one JSON envelope on stdout:
+                      {"success", "message", "data", "error": {"class"}, "exitCode"}
+                      error.class: usage | connection | version_mismatch |
+                      timeout | command_failed (matches the exit code)
   --ignore-version-mismatch
                       Skip CLI/connector version check
 Use "unity-cli <command> --help" for more information about a command.

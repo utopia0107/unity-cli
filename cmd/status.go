@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"strings"
@@ -16,10 +17,13 @@ var statusPollInterval = 500 * time.Millisecond
 func statusCmd(project string, ignoreVersionMismatch bool) error {
 	instances, err := statusInstances(project)
 	if err != nil {
-		return err
+		return withCode(ExitConnection, err)
 	}
 	if len(instances) == 0 {
-		return fmt.Errorf("no Unity instances running")
+		return withCode(ExitConnection, fmt.Errorf("no Unity instances running"))
+	}
+	if flagJSON {
+		return statusJSON(instances, ignoreVersionMismatch)
 	}
 	for i := range instances {
 		if i > 0 {
@@ -30,6 +34,35 @@ func statusCmd(project string, ignoreVersionMismatch bool) error {
 			return err
 		}
 	}
+	return nil
+}
+
+// statusInstance is the --json status entry: heartbeat fields plus liveness.
+type statusInstance struct {
+	client.Instance
+	Responding bool `json:"responding"`
+}
+
+func statusJSON(instances []client.Instance, ignoreVersionMismatch bool) error {
+	out := make([]statusInstance, 0, len(instances))
+	var verErr error
+	for i := range instances {
+		age := time.Since(time.UnixMilli(instances[i].Timestamp))
+		out = append(out, statusInstance{Instance: instances[i], Responding: age <= 3*time.Second})
+		if verErr == nil {
+			verErr = checkConnectorVersion(&instances[i], Version, ignoreVersionMismatch)
+		}
+	}
+	data, err := json.Marshal(out)
+	if err != nil {
+		return err
+	}
+	if verErr != nil {
+		code := ExitCodeFor(verErr)
+		writeEnvelope(jsonEnvelope{Success: false, Message: verErr.Error(), Data: data, Error: &jsonError{Class: errorClass(code)}, ExitCode: int(code)})
+		return withCode(code, errReported)
+	}
+	writeEnvelope(jsonEnvelope{Success: true, Message: "ok", Data: data})
 	return nil
 }
 
