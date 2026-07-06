@@ -360,6 +360,38 @@ func TestSend_ConnectionErrorDoesNotExposePort(t *testing.T) {
 	assertNoPortLeak(t, err.Error(), port)
 }
 
+func TestHealth_ConnectionErrorIsClassifiedAndKeepsCause(t *testing.T) {
+	port := closedLocalPort(t)
+
+	_, err := Health(&Instance{Port: port}, 1000)
+	if err == nil {
+		t.Fatal("expected connection error")
+	}
+	if !errors.Is(err, ErrConnection) {
+		t.Fatalf("expected ErrConnection, got %v", err)
+	}
+	if !strings.Contains(err.Error(), "refused") {
+		t.Fatalf("expected underlying cause in message, got %q", err.Error())
+	}
+	assertNoPortLeak(t, err.Error(), port)
+}
+
+func TestSend_ConnectionErrorIsClassifiedAndKeepsCause(t *testing.T) {
+	port := closedLocalPort(t)
+
+	_, err := Send(&Instance{Port: port}, "exec", nil, 1000)
+	if err == nil {
+		t.Fatal("expected connection error")
+	}
+	if !errors.Is(err, ErrConnection) {
+		t.Fatalf("expected ErrConnection, got %v", err)
+	}
+	if !strings.Contains(err.Error(), "refused") {
+		t.Fatalf("expected underlying cause in message, got %q", err.Error())
+	}
+	assertNoPortLeak(t, err.Error(), port)
+}
+
 func healthTestServer(t *testing.T, status int, body string) (*http.Server, int) {
 	t.Helper()
 	listener, err := net.Listen("tcp", "127.0.0.1:0")

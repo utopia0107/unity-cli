@@ -6,7 +6,9 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -50,6 +52,28 @@ type HealthResponse struct {
 }
 
 var ErrHealthEndpointUnavailable = errors.New("unity health endpoint unavailable")
+
+// ErrConnection marks transport-level failures reaching the Unity listener.
+// Callers can classify with errors.Is; the underlying cause is preserved in the chain.
+var ErrConnection = errors.New("cannot connect to Unity")
+
+// connectionError wraps a transport failure with ErrConnection while keeping the
+// innermost cause (e.g. "connection refused" vs timeout). The URL/address layers
+// are stripped so error messages never expose the internal host/port.
+func connectionError(context string, err error) error {
+	var uerr *url.Error
+	if errors.As(err, &uerr) && uerr.Err != nil {
+		err = uerr.Err
+	}
+	var operr *net.OpError
+	if errors.As(err, &operr) && operr.Err != nil {
+		err = operr.Err
+	}
+	if context != "" {
+		return fmt.Errorf("%w: %s: %w", ErrConnection, context, err)
+	}
+	return fmt.Errorf("%w: %w", ErrConnection, err)
+}
 
 // isProcessDead returns true only when the process is confirmed to not exist.
 // Permission errors or transient failures return false (not confirmed dead),
@@ -226,7 +250,7 @@ func Health(inst *Instance, timeoutMs int) (*Instance, error) {
 
 	resp, err := httpClient.Get(url)
 	if err != nil {
-		return nil, errors.New("cannot reach Unity health endpoint")
+		return nil, connectionError("health endpoint", err)
 	}
 	defer resp.Body.Close()
 
@@ -289,7 +313,7 @@ func Send(inst *Instance, command string, params interface{}, timeoutMs int) (*C
 
 	resp, err := httpClient.Post(url, "application/json", bytes.NewReader(body))
 	if err != nil {
-		return nil, errors.New("cannot connect to Unity")
+		return nil, connectionError("", err)
 	}
 	defer resp.Body.Close()
 

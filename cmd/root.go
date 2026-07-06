@@ -177,7 +177,7 @@ func resolveReady(resolve instanceResolver, timeoutMs int) (*client.Instance, er
 		}
 	}
 	if lastErr != nil {
-		return nil, fmt.Errorf("timed out waiting for Unity listener: %v", lastErr)
+		return nil, fmt.Errorf("timed out waiting for Unity listener: %w", lastErr)
 	}
 	return nil, fmt.Errorf("timed out waiting for Unity listener")
 }
@@ -204,7 +204,7 @@ func sendWithRetry(resolve instanceResolver, command string, params interface{},
 				if sendErr == nil {
 					return resp, nil
 				}
-				return nil, fmt.Errorf("failed sending command to Unity: %v", sendErr)
+				return nil, fmt.Errorf("failed sending command to Unity: %w", sendErr)
 			}
 			lastErr = err
 			if !sleepUntilNextPoll(deadline) {
@@ -219,10 +219,10 @@ func sendWithRetry(resolve instanceResolver, command string, params interface{},
 		if err == nil {
 			return resp, nil
 		}
-		return nil, fmt.Errorf("failed sending command to Unity: %v", err)
+		return nil, fmt.Errorf("failed sending command to Unity: %w", err)
 	}
 	if lastErr != nil {
-		return nil, fmt.Errorf("timed out sending command to Unity: %v", lastErr)
+		return nil, fmt.Errorf("timed out sending command to Unity: %w", lastErr)
 	}
 	return nil, fmt.Errorf("timed out sending command to Unity")
 }
