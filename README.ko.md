@@ -390,6 +390,8 @@ unity-cli --json exec "return 1+1;"
 
 `error.class`는 `usage`, `connection`, `version_mismatch`, `timeout`, `command_failed` 중 하나입니다.
 
+Unity가 꺼진 상태에서도 `unity-cli commands --json`으로 전체 명령 매니페스트(모든 명령, 플래그, 매핑되는 커넥터 도구, 종료 코드, 봉투 스키마)를 확인할 수 있습니다. `unity-cli commands`는 CLI 명령 이름과 `unity-cli list` 출력(커넥터 도구 이름)의 대응 관계(`editor play` → `manage_editor`)를 보여주는 카탈로그를 출력합니다.
+
 ## 종료 코드
 
 프로세스 종료 코드가 실패 원인을 분류하므로 스크립트나 AI 에이전트가 에러 문구를 파싱하지 않고 분기할 수 있습니다:

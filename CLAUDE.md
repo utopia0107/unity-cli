@@ -58,7 +58,8 @@ CI skips these since Unity is not available.
 
 CLI option, command, parameter를 수정하면 관련된 모든 곳을 함께 반영한다:
 - C# tool (Parameters class, HandleCommand)
-- Go help text (root.go의 overview + command별 detailed help)
+- Go 명령 레지스트리 (`cmd/registry.go`의 `commandRegistry` — help 텍스트와
+  `commands --json` 매니페스트가 여기서 생성되므로 별도 help 수정은 불필요)
 - README.md, README.ko.md
 
 ### 버전 관리

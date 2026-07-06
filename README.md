@@ -390,6 +390,8 @@ On failure, `error.class` mirrors the exit code so agents can branch on either:
 
 `error.class` is one of `usage`, `connection`, `version_mismatch`, `timeout`, `command_failed`.
 
+For offline discovery — without Unity running — `unity-cli commands --json` prints the full command manifest: every command, its flags, the connector tool it maps to, exit codes, and the envelope schema. `unity-cli commands` prints a human-readable catalog including the CLI-name → connector-tool mapping (`editor play` → `manage_editor`), which reconciles CLI names with `unity-cli list` output.
+
 ## Exit Codes
 
 The process exit code classifies why a command failed, so scripts and AI agents can branch without parsing error text:

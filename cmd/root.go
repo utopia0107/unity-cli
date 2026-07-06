@@ -78,6 +78,8 @@ func executeParsed(args, cmdArgs []string) error {
 		return nil
 	case "version", "--version", "-v":
 		return versionCmd()
+	case "commands":
+		return commandsCmd()
 	case "update":
 		return updateCmd(subArgs)
 	case "status":
@@ -150,6 +152,19 @@ func versionCmd() error {
 		return emitEnvelope(&client.CommandResponse{Success: true, Message: "unity-cli " + Version, Data: data})
 	}
 	fmt.Println("unity-cli " + Version)
+	return nil
+}
+
+// commandsCmd prints the offline command catalog; with --json, the full manifest.
+func commandsCmd() error {
+	if flagJSON {
+		data, err := json.Marshal(buildManifest())
+		if err != nil {
+			return err
+		}
+		return emitEnvelope(&client.CommandResponse{Success: true, Message: "command manifest", Data: data})
+	}
+	fmt.Print(renderCommandsText())
 	return nil
 }
 
@@ -465,306 +480,25 @@ func splitArgs(args []string) (flags, commands []string) {
 }
 
 func printHelp() {
-	fmt.Print(`unity-cli ` + Version + ` — Control Unity Editor from the command line
-
-Usage: unity-cli <command> [subcommand] [options]
-
-Editor Control:
-  editor play [--wait]          Enter play mode (--wait blocks until fully entered)
-  editor stop                   Exit play mode
-  editor pause                  Toggle pause/resume (play mode only)
-  editor refresh [--force]      Refresh asset database (blocked in play mode unless forced)
-  editor refresh --compile      Recompile scripts and wait until done
-
-Console:
-  console                       Read error & warning logs (default)
-  console --lines 20            Limit to N entries
-  console --type error,warning,log   Filter by log types (comma-separated)
-  console --stacktrace full     Stack trace: none, user (default), full
-  console --clear               Clear console
-
-Execute C#:
-  exec "<code>"                 Run C# code in Unity (return required for output)
-  echo '<code>' | exec          Pipe code via stdin (avoids shell escaping)
-  exec "<code>" --usings x,y    Add extra using directives
-
-  Examples:
-    exec "Time.time"
-    exec "GameObject.FindObjectsOfType<Camera>().Length"
-    exec "var go = new GameObject(\"Test\"); return go.name;"
-
-Menu:
-  menu "<path>"                 Execute Unity menu item by path
-
-  Examples:
-    menu "File/Save Project"
-    menu "Assets/Refresh"
-
-Screenshot:
-  screenshot                          Capture scene view (default)
-  screenshot --view game              Capture game view
-  screenshot --output_path <path>     Custom output path
-
-Reserialize:
-  reserialize [path...]          Force reserialize (no args = entire project)
-
-  Examples:
-    reserialize                                                    Reserialize entire project
-    reserialize Assets/Scenes/Main.unity
-    reserialize Assets/Prefabs/A.prefab Assets/Prefabs/B.prefab
-
-Tests:
-  test                            Run EditMode tests (default)
-  test --mode PlayMode            Run PlayMode tests
-  test --filter <name>            Filter by namespace, class, or full test name
-  test --allow-dirty-scenes       Run even when open scenes have unsaved changes
-  test --auto-save-scenes         Save dirty open scenes before running tests
-
-Profiler:
-  profiler hierarchy              Top-level profiler samples (last frame)
-  profiler hierarchy --depth 5    Recursive drill-down (0=unlimited)
-  profiler hierarchy --root Name  Set root by name (substring match)
-  profiler hierarchy --frames 30  Average over last 30 frames
-  profiler hierarchy --parent 5   Drill into item by ID
-  profiler hierarchy --min 0.5    Filter items below 0.5ms
-  profiler hierarchy --sort self  Sort by self time
-  profiler enable                Start profiler recording
-  profiler disable               Stop profiler recording
-  profiler status                Show profiler state
-  profiler clear                 Clear all captured frames
-
-Custom Tools:
-  list                          List all registered tools with parameter schemas
-  <name>                        Call a custom tool directly
-  <name> --params '{"k":"v"}'   Call with JSON parameters
-
-Status:
-  status                        Show Unity Editor state (ready, compiling, etc.)
-
-Update:
-  update                        Update to the latest version
-  update --check                Check for updates without installing
-
-Global Options:
-  --project <path>    Select Unity instance by project path
-  --timeout <ms>      Request timeout in ms (default: 120000).
-                      When set explicitly, also bounds compile waits and
-                      PlayMode test polling (defaults: 5m / 10m).
-  --json              Emit one JSON envelope on stdout:
-                      {"success", "message", "data", "error": {"class"}, "exitCode"}
-                      error.class: usage | connection | version_mismatch |
-                      timeout | command_failed (matches the exit code)
-  --ignore-version-mismatch
-                      Skip CLI/connector version check
-Use "unity-cli <command> --help" for more information about a command.
-
-Notes:
-  - Unity must be open with the Connector package installed
-  - Multiple Unity instances: use --project to select
-  - Custom tools: any [UnityCliTool] class is auto-discovered
-  - Run 'list' to see all available tools
-`)
+	fmt.Print(renderOverviewHelp())
 }
 
 func printTopicHelp(topic string) {
 	switch topic {
-	case "editor":
-		fmt.Print(`Usage: unity-cli editor <play|stop|pause|refresh> [options]
-
-Subcommands:
-  play [--wait]       Enter play mode
-                      --wait blocks until Unity fully enters play mode.
-                      Without --wait, returns immediately after requesting.
-  stop                Exit play mode. No effect if not playing.
-  pause               Toggle pause. Only works during play mode.
-  refresh             Refresh AssetDatabase (reimport changed assets).
-                      Blocked in play mode unless --force is set.
-    --compile         Recompile scripts and wait until compilation finishes.
-    --force           Allow refresh during play mode and force asset update.
-
-Examples:
-  unity-cli editor play --wait
-  unity-cli editor stop
-  unity-cli editor refresh --compile
-  unity-cli editor refresh --force
-`)
-	case "console":
-		fmt.Print(`Usage: unity-cli console [options]
-
-Read Unity console log entries.
-
-Options:
-  --lines <N>          Limit to N entries
-  --type <types>       Comma-separated log types: error, warning, log (default: error,warning,log)
-  --stacktrace <mode>  none: first line only
-                        user: with stack trace, internal frames filtered (default)
-                        full: raw message including all frames
-  --clear              Clear console
-
-Examples:
-  unity-cli console
-  unity-cli console --lines 20 --type error,warning,log
-  unity-cli console --stacktrace user
-  unity-cli console --type error --stacktrace full
-  unity-cli console --clear
-`)
-	case "exec":
-		fmt.Print(`Usage: unity-cli exec "<code>" [options]
-
-Execute C# code inside Unity Editor. Full access to UnityEngine,
-UnityEditor, and all loaded assemblies.
-
-Use 'return' to get output. Add --usings for types outside default namespaces.
-
-Options:
-  --usings <ns1,ns2>   Add extra using directives
-  --csc <path>         Path to csc compiler (csc.dll or csc.exe). Auto-detected if omitted.
-  --dotnet <path>      Path to dotnet runtime. Auto-detected if omitted.
-
-Default usings: System, System.Collections.Generic, System.IO, System.Linq,
-  System.Reflection, System.Threading.Tasks, UnityEngine,
-  UnityEngine.SceneManagement, UnityEditor, UnityEditor.SceneManagement,
-  UnityEditorInternal
-
-Examples:
-  unity-cli exec "return 1+1;"
-  unity-cli exec "return Application.dataPath;"
-  echo 'return EditorSceneManager.GetActiveScene().name;' | unity-cli exec
-  echo 'Debug.Log("hello"); return null;' | unity-cli exec
-  unity-cli exec "return World.All.Count;" --usings Unity.Entities
-
-Stdin:
-  Pipe code via stdin to avoid shell escaping issues.
-  echo '<code>' | unity-cli exec [--usings ns1,ns2]
-
-Notes:
-  - Use 'return' for output, 'return null;' for void operations
-`)
-	case "menu":
-		fmt.Print(`Usage: unity-cli menu "<path>"
-
-Execute a Unity menu item by its path.
-
-Examples:
-  unity-cli menu "File/Save Project"
-  unity-cli menu "Assets/Refresh"
-  unity-cli menu "Window/General/Console"
-
-Note: File/Quit is blocked for safety.
-`)
-	case "screenshot":
-		fmt.Print(`Usage: unity-cli screenshot [options]
-
-Capture a screenshot of the Unity editor.
-
-Options:
-  --view <mode>      scene (default), game
-  --width <N>        Image width in pixels (default: 1920)
-  --height <N>       Image height in pixels (default: 1080)
-  --output_path <path>  Output path, absolute or relative to project root
-                        (default: Screenshots/screenshot.png)
-
-Examples:
-  unity-cli screenshot
-  unity-cli screenshot --view game
-  unity-cli screenshot --view scene --width 3840 --height 2160
-  unity-cli screenshot --output_path captures/my_scene.png
-`)
-	case "reserialize":
-		fmt.Print(`Usage: unity-cli reserialize [path...]
-
-Force Unity to reserialize assets through its own YAML serializer.
-Run after editing .prefab, .unity, .asset, or .mat files as text.
-No arguments = reserialize the entire project.
-
-Examples:
-  unity-cli reserialize
-  unity-cli reserialize Assets/Prefabs/Player.prefab
-  unity-cli reserialize Assets/Scenes/Main.unity Assets/Scenes/Lobby.unity
-`)
-	case "profiler":
-		fmt.Print(`Usage: unity-cli profiler <subcommand> [options]
-
-Subcommands:
-  hierarchy             Top-level profiler samples (last frame)
-    --depth <N>         Recursive depth (0=unlimited, default: 1)
-    --root <name>       Set root by name (substring match, searches full tree)
-    --frames <N>        Average over last N frames (flat output, sorted by time)
-    --from <N>          Start frame index for range average
-    --to <N>            End frame index for range average
-    --parent <ID>       Drill into item by ID
-    --min <ms>          Filter items below threshold
-    --sort <col>        Sort by: total (default), self, calls
-    --max <N>           Max children per level (default: 30)
-    --frame <N>         Specific frame index
-    --thread <N>        Thread index (0=main)
-  enable                Start profiler recording
-  disable               Stop profiler recording
-  status                Show profiler state
-  clear                 Clear all captured frames
-
-Examples:
-  unity-cli profiler hierarchy --depth 3
-  unity-cli profiler hierarchy --root SimulationSystem --depth 3
-  unity-cli profiler hierarchy --frames 30 --min 0.5 --sort self
-  unity-cli profiler enable
-`)
-	case "test":
-		fmt.Print(`Usage: unity-cli test [options]
-
-Run Unity tests via the Test Runner API.
-
-Options:
-  --mode <EditMode|PlayMode>    Test mode (default: EditMode)
-  --filter <name>               Filter by namespace, class, or full test name
-                                Must be the full path (e.g. MyNamespace.MyClass)
-  --allow-dirty-scenes          Run even when open scenes have unsaved changes
-  --auto-save-scenes            Save dirty open scenes before running tests
-
-EditMode tests hold the connection open and return results directly.
-PlayMode tests return immediately and poll a results file (domain reload safe).
-By default, tests are blocked when any open scene has unsaved changes.
-
-Requires the Unity Test Framework package (com.unity.test-framework).
-
-Examples:
-  unity-cli test
-  unity-cli test --mode PlayMode
-  unity-cli test --auto-save-scenes
-  unity-cli test --filter MyNamespace.MyTests
-  unity-cli test --mode EditMode --filter MyNamespace.MyTests.SpecificTest
-`)
-	case "list":
-		fmt.Print(`Usage: unity-cli list
-
-List all registered tools (built-in + custom) with parameter schemas.
-
-Example:
-  unity-cli list
-`)
-	case "status":
-		fmt.Print(`Usage: unity-cli status
-
-Show the current Unity Editor state: project path, version, PID.
-Reports "not responding" if heartbeat is older than 3 seconds.
-
-Example:
-  unity-cli status
-`)
-	case "update":
-		fmt.Print(`Usage: unity-cli update [options]
-
-Update the CLI binary to the latest release from GitHub.
-
-Options:
-  --check              Check for updates without installing
-
-Examples:
-  unity-cli update
-  unity-cli update --check
-`)
 	case "custom-tools", "custom", "tools":
-		fmt.Print(`How to write custom tools for unity-cli
+		fmt.Print(customToolsHelp)
+	case "setup", "install":
+		fmt.Print(setupHelp)
+	default:
+		if s := renderTopicHelp(topic); s != "" {
+			fmt.Print(s)
+			return
+		}
+		fmt.Printf("Unknown help topic: %s\n\nUse \"unity-cli --help\" for available commands.\n", topic)
+	}
+}
+
+const customToolsHelp = `How to write custom tools for unity-cli
 
 Custom tools are C# classes that run inside Unity Editor. The CLI
 discovers them automatically via reflection.
@@ -801,9 +535,9 @@ Rules:
   - Runs on Unity main thread — all Unity APIs are safe
   - Discovered on Editor start and after every script recompilation
   - Duplicate tool names are detected and logged as errors (first wins)
-`)
-	case "setup", "install":
-		fmt.Print(`Installation and Unity setup
+`
+
+const setupHelp = `Installation and Unity setup
 
 CLI Installation:
   # Linux / macOS
@@ -822,8 +556,4 @@ Unity Setup:
 
 Verify:
   unity-cli list
-`)
-	default:
-		fmt.Printf("Unknown help topic: %s\n\nUse \"unity-cli --help\" for available commands.\n", topic)
-	}
-}
+`
