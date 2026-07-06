@@ -32,7 +32,7 @@ namespace UnityCliConnector.Tools
 
         public class Parameters
         {
-            [ToolParameter("C# code to execute. Use 'return' for output.", Required = true)]
+            [ToolParameter("C# code to execute. Use 'return' for output.", Required = true, Position = 0)]
             public string Code { get; set; }
 
             [ToolParameter("Additional using directives (comma-separated, e.g. Unity.Entities,Unity.Mathematics)")]
@@ -48,8 +48,7 @@ namespace UnityCliConnector.Tools
         public static object HandleCommand(JObject parameters)
         {
             var p = new ToolParams(parameters);
-            var code = p.Get("code")
-                ?? (p.GetRaw("args") as JArray)?[0]?.ToString();
+            var code = p.Get("code");
             if (string.IsNullOrEmpty(code))
                 return new ErrorResponse("'code' required");
 

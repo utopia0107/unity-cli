@@ -16,7 +16,7 @@ namespace UnityCliConnector.Tools
 
         public class Parameters
         {
-            [ToolParameter("Action to perform: play, stop, pause, resume, refresh, set_active_tool, add_tag, remove_tag, add_layer, remove_layer", Required = true)]
+            [ToolParameter("Action to perform: play, stop, pause, resume, refresh, set_active_tool, add_tag, remove_tag, add_layer, remove_layer", Required = true, Position = 0)]
             public string Action { get; set; }
 
             [ToolParameter("Wait for action to complete before responding")]

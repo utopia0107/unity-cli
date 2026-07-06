@@ -12,15 +12,14 @@ namespace UnityCliConnector.Tools
 
         public class Parameters
         {
-            [ToolParameter("Unity menu item path to execute (e.g. File/Save Project)", Required = true)]
+            [ToolParameter("Unity menu item path to execute (e.g. File/Save Project)", Required = true, Position = 0)]
             public string MenuPath { get; set; }
         }
 
         public static object HandleCommand(JObject @params)
         {
             var p = new ToolParams(@params);
-            string menuPath = p.Get("menu_path")
-                ?? (p.GetRaw("args") as JArray)?[0]?.ToString();
+            string menuPath = p.Get("menu_path");
             if (string.IsNullOrWhiteSpace(menuPath))
                 return new ErrorResponse("'menu_path' parameter required.");
 

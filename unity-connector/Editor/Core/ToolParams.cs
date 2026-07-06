@@ -3,6 +3,20 @@ using Newtonsoft.Json.Linq;
 
 namespace UnityCliConnector
 {
+    /// <summary>
+    /// Thrown when a parameter is present but cannot be parsed as the expected
+    /// type. The router converts it into an invalid_param error response.
+    /// </summary>
+    public class ToolParamException : Exception
+    {
+        public string Param { get; }
+
+        public ToolParamException(string param, string message) : base(message)
+        {
+            Param = param;
+        }
+    }
+
     public class ToolParams
     {
         private readonly JObject _params;
@@ -25,24 +39,34 @@ namespace UnityCliConnector
             return GetString(key) ?? defaultValue;
         }
 
+        // Absent keys return the default; present-but-unparseable values throw
+        // ToolParamException instead of being silently swallowed.
         public int? GetInt(string key, int? defaultValue = null)
         {
             var str = GetString(key);
             if (string.IsNullOrEmpty(str)) return defaultValue;
-            return int.TryParse(str, out var result) ? result : defaultValue;
+            if (int.TryParse(str, out var result)) return result;
+            throw new ToolParamException(key, $"'{key}' must be an integer, got '{str}'");
         }
 
         public float? GetFloat(string key, float? defaultValue = null)
         {
             var str = GetString(key);
             if (string.IsNullOrEmpty(str)) return defaultValue;
-            return float.TryParse(str, System.Globalization.NumberStyles.Float,
-                System.Globalization.CultureInfo.InvariantCulture, out var result) ? result : defaultValue;
+            if (float.TryParse(str, System.Globalization.NumberStyles.Float,
+                System.Globalization.CultureInfo.InvariantCulture, out var result)) return result;
+            throw new ToolParamException(key, $"'{key}' must be a number, got '{str}'");
         }
 
         public bool GetBool(string key, bool defaultValue = false)
         {
-            return ParamCoercion.CoerceBool(GetToken(key), defaultValue);
+            var token = GetToken(key);
+            if (token == null || token.Type == JTokenType.Null) return defaultValue;
+            var coerced = ParamCoercion.CoerceBoolNullable(token);
+            if (coerced.HasValue) return coerced.Value;
+            var str = token.ToString().Trim();
+            if (str.Length == 0) return defaultValue;
+            throw new ToolParamException(key, $"'{key}' must be a boolean, got '{str}'");
         }
 
         public JToken GetRaw(string key)

@@ -33,13 +33,23 @@ namespace UnityCliConnector
             if (command == "list")
                 return new SuccessResponse("Available tools", ToolDiscovery.GetToolSchemas());
 
-            var handler = ToolDiscovery.FindHandler(command);
-            if (handler == null)
+            var tool = ToolDiscovery.Find(command);
+            if (tool == null)
                 return new ErrorResponse($"Unknown command: {command}", new { code = "unknown_command" });
+
+            parameters ??= new JObject();
+            ApplyPositionalArgs(tool, parameters);
+
+            foreach (var schema in tool.Schema)
+            {
+                if (!schema.Required || HasValue(parameters, schema.Name)) continue;
+                return new ErrorResponse($"'{schema.Name}' parameter is required",
+                    new { code = "missing_param", param = schema.Name });
+            }
 
             try
             {
-                var result = handler.Invoke(null, new object[] { parameters ?? new JObject() });
+                var result = tool.Handler.Invoke(null, new object[] { parameters });
 
                 if (result is Task<object> asyncTask)
                     return await asyncTask;
@@ -55,9 +65,36 @@ namespace UnityCliConnector
             catch (Exception ex)
             {
                 var inner = ex.InnerException ?? ex;
+                if (inner is ToolParamException tpe)
+                    return new ErrorResponse(tpe.Message, new { code = "invalid_param", param = tpe.Param });
                 Debug.LogException(inner);
                 return new ErrorResponse($"{command} failed: {inner.Message}");
             }
+        }
+
+        /// <summary>
+        /// Copies positional args (params.args[i]) into named parameters whose
+        /// schema declares Position = i, so positionals pass Required validation
+        /// and tools no longer need hand-rolled args fallbacks.
+        /// </summary>
+        static void ApplyPositionalArgs(ToolDiscovery.ToolInfo tool, JObject parameters)
+        {
+            if (parameters["args"] is not JArray args || args.Count == 0) return;
+
+            foreach (var schema in tool.Schema)
+            {
+                if (schema.Position < 0 || schema.Position >= args.Count) continue;
+                if (HasValue(parameters, schema.Name)) continue;
+                parameters[schema.Name] = args[schema.Position];
+            }
+        }
+
+        static bool HasValue(JObject parameters, string name)
+        {
+            var token = parameters[name];
+            if (token == null || token.Type == JTokenType.Null) return false;
+            if (token.Type == JTokenType.String && string.IsNullOrEmpty(token.Value<string>())) return false;
+            return true;
         }
     }
 }

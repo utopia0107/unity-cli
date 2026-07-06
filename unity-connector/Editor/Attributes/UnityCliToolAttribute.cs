@@ -27,6 +27,12 @@ namespace UnityCliConnector
         public bool Required { get; set; } = false;
         public string DefaultValue { get; set; }
 
+        /// <summary>
+        /// When >= 0, the parameter may also be supplied positionally: the router
+        /// copies params.args[Position] into the named parameter before dispatch.
+        /// </summary>
+        public int Position { get; set; } = -1;
+
         public ToolParameterAttribute(string description)
         {
             Description = description;

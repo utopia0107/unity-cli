@@ -13,7 +13,7 @@ namespace UnityCliConnector.Tools
     {
         public class Parameters
         {
-            [ToolParameter("Action: hierarchy, enable, disable, status, or clear", Required = true)]
+            [ToolParameter("Action: hierarchy (default), enable, disable, status, or clear", Position = 0)]
             public string Action { get; set; }
 
             [ToolParameter("Frame index. -1 or omit = last captured frame.")]
@@ -53,8 +53,7 @@ namespace UnityCliConnector.Tools
         public static object HandleCommand(JObject parameters)
         {
             var p = new ToolParams(parameters);
-            var action = p.Get("action")?.ToLowerInvariant()
-                ?? (p.GetRaw("args") as JArray)?[0]?.ToString()?.ToLowerInvariant();
+            var action = p.Get("action")?.ToLowerInvariant();
             if (string.IsNullOrEmpty(action))
                 action = "hierarchy";
 
@@ -150,7 +149,7 @@ namespace UnityCliConnector.Tools
             // --parent: by ID
             else if (parentIdToken != null && parentIdToken.Type != JTokenType.Null)
             {
-                parentId = parentIdToken.Value<int>();
+                parentId = p.GetInt("parent").Value;
                 parentName = frameData.GetItemName(parentId);
             }
 
