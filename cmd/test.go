@@ -35,7 +35,7 @@ func testCmd(args []string, send sendFn, resolve instanceResolver) (*client.Comm
 	}
 
 	if mode != "EditMode" && mode != "PlayMode" {
-		return nil, fmt.Errorf("--mode must be EditMode or PlayMode, got: %s", mode)
+		return nil, withCode(ExitUsage, fmt.Errorf("--mode must be EditMode or PlayMode, got: %s", mode))
 	}
 
 	params := map[string]interface{}{
@@ -121,5 +121,5 @@ func pollTestResults(runID string, resolve instanceResolver) (*client.CommandRes
 		}
 	}
 
-	return nil, fmt.Errorf("timed out waiting for test results (10m)")
+	return nil, withCode(ExitTimeout, fmt.Errorf("timed out waiting for test results (10m)"))
 }

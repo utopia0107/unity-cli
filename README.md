@@ -359,6 +359,21 @@ unity-cli exec --help
 unity-cli profiler --help
 ```
 
+## Exit Codes
+
+The process exit code classifies why a command failed, so scripts and AI agents can branch without parsing error text:
+
+| Code | Meaning |
+|------|---------|
+| 0 | Success |
+| 1 | Command failed — Unity executed it but reported an error (test failures, compile errors, tool errors) |
+| 2 | Usage error — invalid flags or arguments, before contacting Unity |
+| 3 | Connection failure — Unity not running, unreachable, or ambiguous instance selection |
+| 4 | Version mismatch between CLI and connector |
+| 5 | Timeout — deadline exceeded while waiting for the listener, compilation, or test results |
+
+Results go to stdout; errors and progress messages go to stderr.
+
 ## Writing Custom Tools
 
 Create a static class with `[UnityCliTool]` attribute in any Editor assembly. The Connector discovers it automatically on domain reload.

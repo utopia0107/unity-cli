@@ -31,13 +31,12 @@ func Execute() error {
 
 	args := os.Args[1:]
 	if err := rejectRemovedFlags(args); err != nil {
-		return err
+		return withCode(ExitUsage, err)
 	}
 
 	flagArgs, cmdArgs := splitArgs(args)
 	if err := flag.CommandLine.Parse(flagArgs); err != nil {
-		fmt.Fprintf(os.Stderr, "flag parse error: %v\n", err)
-		os.Exit(1)
+		return withCode(ExitUsage, fmt.Errorf("flag parse error: %w", err))
 	}
 
 	if len(cmdArgs) == 0 {
@@ -77,7 +76,7 @@ func Execute() error {
 
 	inst, err := client.DiscoverInstance(flagProject)
 	if err != nil {
-		return err
+		return withCode(ExitConnection, err)
 	}
 
 	targetProject := flagProject
@@ -133,7 +132,7 @@ func Execute() error {
 	printUpdateNotice()
 
 	if !resp.Success {
-		os.Exit(1)
+		return withCode(ExitCommandFailed, errReported)
 	}
 
 	return nil
@@ -187,9 +186,9 @@ func resolveReadyUntil(resolve instanceResolver, deadline time.Time) (*client.In
 		return health, nil
 	}
 	if lastErr != nil {
-		return nil, fmt.Errorf("timed out waiting for Unity listener: %w", lastErr)
+		return nil, withCode(ExitTimeout, fmt.Errorf("timed out waiting for Unity listener: %w", lastErr))
 	}
-	return nil, fmt.Errorf("timed out waiting for Unity listener")
+	return nil, withCode(ExitTimeout, fmt.Errorf("timed out waiting for Unity listener"))
 }
 
 func sendWithRetry(resolve instanceResolver, command string, params interface{}, timeoutMs int) (*client.CommandResponse, error) {
@@ -313,7 +312,7 @@ func buildParams(args []string, base map[string]interface{}) (map[string]interfa
 
 	if raw, ok := flags["params"]; ok {
 		if jsonErr := json.Unmarshal([]byte(raw), &params); jsonErr != nil {
-			return nil, fmt.Errorf("invalid JSON in --params: %w", jsonErr)
+			return nil, withCode(ExitUsage, fmt.Errorf("invalid JSON in --params: %w", jsonErr))
 		}
 	}
 	for k, v := range flags {

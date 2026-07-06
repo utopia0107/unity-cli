@@ -93,10 +93,10 @@ func checkConnectorVersion(inst *client.Instance, cliVersion string, ignoreMisma
 
 	connectorVersion := strings.TrimSpace(inst.ConnectorVersion)
 	if connectorVersion == "" {
-		return fmt.Errorf("connector version is unknown; update the Unity Connector package to match unity-cli %s, or rerun with --ignore-version-mismatch", cliVersion)
+		return withCode(ExitVersionMismatch, fmt.Errorf("connector version is unknown; update the Unity Connector package to match unity-cli %s, or rerun with --ignore-version-mismatch", cliVersion))
 	}
 	if normalizeVersion(connectorVersion) != normalizeVersion(cliVersion) {
-		return fmt.Errorf("connector version mismatch: unity-cli %s, connector %s. Update both to the same release, or rerun with --ignore-version-mismatch", cliVersion, connectorVersion)
+		return withCode(ExitVersionMismatch, fmt.Errorf("connector version mismatch: unity-cli %s, connector %s. Update both to the same release, or rerun with --ignore-version-mismatch", cliVersion, connectorVersion))
 	}
 	return nil
 }

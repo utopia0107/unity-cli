@@ -15,7 +15,9 @@ func init() {
 
 func main() {
 	if err := cmd.Execute(); err != nil {
-		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
-		os.Exit(1)
+		if !cmd.IsReported(err) {
+			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		}
+		os.Exit(int(cmd.ExitCodeFor(err)))
 	}
 }
