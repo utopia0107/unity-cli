@@ -33,14 +33,14 @@ func TestTestCmd_ForwardsDirtySceneOptions(t *testing.T) {
 	if resp == nil || !resp.Success {
 		t.Fatalf("testCmd response = %#v, want success", resp)
 	}
-	if captured["allowDirtyScenes"] != true {
-		t.Errorf("allowDirtyScenes = %v, want true", captured["allowDirtyScenes"])
+	if captured["allow_dirty_scenes"] != true {
+		t.Errorf("allow_dirty_scenes = %v, want true", captured["allow_dirty_scenes"])
 	}
-	if captured["autoSaveScenes"] != true {
-		t.Errorf("autoSaveScenes = %v, want true", captured["autoSaveScenes"])
+	if captured["auto_save_scenes"] != true {
+		t.Errorf("auto_save_scenes = %v, want true", captured["auto_save_scenes"])
 	}
-	if captured["runId"] == "" {
-		t.Error("runId should be sent")
+	if captured["run_id"] == "" {
+		t.Error("run_id should be sent")
 	}
 }
 
@@ -137,7 +137,7 @@ func TestTestCmd_PlayModePollsRunIDResult(t *testing.T) {
 
 	send := func(cmd string, params interface{}) (*client.CommandResponse, error) {
 		captured := params.(map[string]interface{})
-		runID := captured["runId"].(string)
+		runID := captured["run_id"].(string)
 		resp := client.CommandResponse{Success: true, Message: "done"}
 		data, err := json.Marshal(resp)
 		if err != nil {

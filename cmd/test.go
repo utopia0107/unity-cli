@@ -42,15 +42,15 @@ func testCmd(args []string, send sendFn, resolve instanceResolver) (*client.Comm
 		"mode": mode,
 	}
 	runID := newTestRunID()
-	params["runId"] = runID
+	params["run_id"] = runID
 	if filter, ok := flags["filter"]; ok {
 		params["filter"] = filter
 	}
 	if _, ok := flags["allow-dirty-scenes"]; ok {
-		params["allowDirtyScenes"] = true
+		params["allow_dirty_scenes"] = true
 	}
 	if _, ok := flags["auto-save-scenes"]; ok {
-		params["autoSaveScenes"] = true
+		params["auto_save_scenes"] = true
 	}
 	if v, ok := flags["timeout-sec"]; ok {
 		params["timeout_sec"] = v

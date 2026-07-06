@@ -19,15 +19,15 @@ import (
 // Instance represents a running Unity Editor discovered from ~/.unity-cli/instances/.
 type Instance struct {
 	State            string `json:"state"`
-	ProjectPath      string `json:"projectPath"`
+	ProjectPath      string `json:"project_path"`
 	Port             int    `json:"port"`
 	PID              int    `json:"pid"`
-	UnityVersion     string `json:"unityVersion,omitempty"`
-	ConnectorVersion string `json:"connectorVersion,omitempty"`
+	UnityVersion     string `json:"unity_version,omitempty"`
+	ConnectorVersion string `json:"connector_version,omitempty"`
 	Timestamp        int64  `json:"timestamp,omitempty"`
-	CompileErrors    bool   `json:"compileErrors,omitempty"`
+	CompileErrors    bool   `json:"compile_errors,omitempty"`
 	Ready            bool   `json:"ready,omitempty"`
-	ListenerRunning  bool   `json:"listenerRunning,omitempty"`
+	ListenerRunning  bool   `json:"listener_running,omitempty"`
 }
 
 // CommandRequest is the JSON body sent to Unity's HTTP server.

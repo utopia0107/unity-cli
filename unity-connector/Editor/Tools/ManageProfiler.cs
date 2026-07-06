@@ -155,12 +155,13 @@ namespace UnityCliConnector.Tools
 
             var items = BuildChildren(frameData, parentId, minTime, maxItems, depth);
 
+            // JObject keys bypass the snake_case naming strategy — keep them snake here.
             var result = new JObject
             {
                 ["frame"] = frameIndex,
-                ["threadIndex"] = threadIndex,
+                ["thread_index"] = threadIndex,
                 ["parent"] = parentId,
-                ["parentName"] = parentName,
+                ["parent_name"] = parentName,
                 ["depth"] = depth >= 999 ? 0 : depth,
                 ["children"] = items,
             };
@@ -312,10 +313,10 @@ namespace UnityCliConnector.Tools
 
                 var item = new JObject
                 {
-                    ["itemId"] = childId,
+                    ["item_id"] = childId,
                     ["name"] = frameData.GetItemName(childId),
-                    ["totalMs"] = Math.Round(totalTime, 3),
-                    ["selfMs"] = Math.Round(selfTime, 3),
+                    ["total_ms"] = Math.Round(totalTime, 3),
+                    ["self_ms"] = Math.Round(selfTime, 3),
                     ["calls"] = calls,
                 };
 

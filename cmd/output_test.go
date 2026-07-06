@@ -199,8 +199,8 @@ func TestStatusJSONSuccessShape(t *testing.T) {
 		t.Fatalf("data: got %v, want 1 instance", env["data"])
 	}
 	entry := list[0].(map[string]interface{})
-	if entry["projectPath"] != "/projects/current" {
-		t.Errorf("projectPath: got %v", entry["projectPath"])
+	if entry["project_path"] != "/projects/current" {
+		t.Errorf("project_path: got %v", entry["project_path"])
 	}
 	if entry["responding"] != true {
 		t.Errorf("responding: got %v, want true", entry["responding"])

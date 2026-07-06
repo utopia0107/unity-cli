@@ -63,8 +63,8 @@ namespace UnityCliConnector.TestRunner
 
             var filter = p.Get("filter", null);
             var dirtySceneResult = PrepareDirtyScenes(
-                p.GetBool("allowDirtyScenes") || p.GetBool("allow_dirty_scenes"),
-                p.GetBool("autoSaveScenes") || p.GetBool("auto_save_scenes"));
+                p.GetBool("allow_dirty_scenes"),
+                p.GetBool("auto_save_scenes"));
             if (dirtySceneResult != null)
                 return Task.FromResult<object>(dirtySceneResult);
 
@@ -75,7 +75,7 @@ namespace UnityCliConnector.TestRunner
                 return ExecuteInProcess(testMode, filter, timeoutSec);
             }
 
-            var runId = p.Get("runId", Guid.NewGuid().ToString("N"));
+            var runId = p.Get("run_id", Guid.NewGuid().ToString("N"));
             StartPlayModeRun(filter, runId);
             return Task.FromResult<object>(new SuccessResponse("running", new { runId }));
         }
@@ -237,7 +237,7 @@ namespace UnityCliConnector.TestRunner
             try
             {
                 Directory.CreateDirectory(StatusDir);
-                File.WriteAllText(ResultsFilePath(runId), JsonConvert.SerializeObject(data));
+                File.WriteAllText(ResultsFilePath(runId), JsonConvert.SerializeObject(data, JsonSettings.Settings));
             }
             catch (Exception ex)
             {

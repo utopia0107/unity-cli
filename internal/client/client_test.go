@@ -260,7 +260,7 @@ func TestScanInstances_SkipsPersistentInvalidJSON(t *testing.T) {
 }
 
 func TestHealth_ReturnsListenerSnapshot(t *testing.T) {
-	server, port := healthTestServer(t, http.StatusOK, `{"success":true,"message":"ok","data":{"state":"ready","projectPath":"/projects/current","port":8090,"pid":123,"unityVersion":"6000.3.10f1","connectorVersion":"0.3.19","timestamp":1000,"ready":true,"listenerRunning":true}}`)
+	server, port := healthTestServer(t, http.StatusOK, `{"success":true,"message":"ok","data":{"state":"ready","project_path":"/projects/current","port":8090,"pid":123,"unity_version":"6000.3.10f1","connector_version":"0.3.19","timestamp":1000,"ready":true,"listener_running":true}}`)
 	_ = server
 
 	got, err := Health(&Instance{Port: port}, 1000)
@@ -276,7 +276,7 @@ func TestHealth_ReturnsListenerSnapshot(t *testing.T) {
 }
 
 func TestHealth_RejectsNotReadySnapshot(t *testing.T) {
-	server, port := healthTestServer(t, http.StatusOK, `{"success":true,"message":"ok","data":{"state":"starting","projectPath":"","port":8090,"pid":0,"timestamp":0,"ready":false}}`)
+	server, port := healthTestServer(t, http.StatusOK, `{"success":true,"message":"ok","data":{"state":"starting","project_path":"","port":8090,"pid":0,"timestamp":0,"ready":false}}`)
 	_ = server
 
 	if _, err := Health(&Instance{Port: port}, 1000); err == nil {
@@ -332,7 +332,7 @@ func TestHealth_ReturnsUnsuccessfulHealthError(t *testing.T) {
 }
 
 func TestHealth_RejectsProjectMismatch(t *testing.T) {
-	server, port := healthTestServer(t, http.StatusOK, `{"success":true,"message":"ok","data":{"state":"ready","projectPath":"/projects/other","port":8090,"pid":123,"timestamp":1000,"ready":true}}`)
+	server, port := healthTestServer(t, http.StatusOK, `{"success":true,"message":"ok","data":{"state":"ready","project_path":"/projects/other","port":8090,"pid":123,"timestamp":1000,"ready":true}}`)
 	_ = server
 
 	if _, err := Health(&Instance{ProjectPath: "/projects/current", Port: port}, 1000); err == nil {

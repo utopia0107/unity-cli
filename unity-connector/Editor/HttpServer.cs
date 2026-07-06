@@ -337,7 +337,7 @@ namespace UnityCliConnector
 
             try
             {
-                var responseJson = JsonConvert.SerializeObject(result);
+                var responseJson = JsonConvert.SerializeObject(result, JsonSettings.Settings);
                 var buffer = Encoding.UTF8.GetBytes(responseJson);
                 response.ContentLength64 = buffer.Length;
                 await response.OutputStream.WriteAsync(buffer, 0, buffer.Length);
