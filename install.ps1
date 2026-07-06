@@ -1,6 +1,6 @@
 $ErrorActionPreference = "Stop"
 
-$repo = "youngwoocho02/unity-cli"
+$repo = "utopia0107/unity-cli"
 $installDir = "$env:LOCALAPPDATA\unity-cli"
 $exe = "$installDir\unity-cli.exe"
 

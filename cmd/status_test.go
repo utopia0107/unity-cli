@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/youngwoocho02/unity-cli/internal/client"
+	"github.com/utopia0107/unity-cli/internal/client"
 )
 
 func writeInstanceFile(t *testing.T, inst client.Instance) string {

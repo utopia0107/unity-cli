@@ -5,7 +5,7 @@ package client_test
 import (
 	"testing"
 
-	"github.com/youngwoocho02/unity-cli/internal/client"
+	"github.com/utopia0107/unity-cli/internal/client"
 )
 
 func TestDiscoverInstance(t *testing.T) {

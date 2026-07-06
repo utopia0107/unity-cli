@@ -3,7 +3,7 @@ package cmd
 import (
 	"errors"
 
-	"github.com/youngwoocho02/unity-cli/internal/client"
+	"github.com/utopia0107/unity-cli/internal/client"
 )
 
 // ExitCode classifies why the CLI exited. Documented in README (Exit Codes).

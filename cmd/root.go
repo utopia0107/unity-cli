@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/youngwoocho02/unity-cli/internal/client"
+	"github.com/utopia0107/unity-cli/internal/client"
 )
 
 var Version = "dev"
@@ -543,17 +543,17 @@ const setupHelp = `Installation and Unity setup
 
 CLI Installation:
   # Linux / macOS
-  curl -fsSL https://raw.githubusercontent.com/youngwoocho02/unity-cli/master/install.sh | sh
+  curl -fsSL https://raw.githubusercontent.com/utopia0107/unity-cli/master/install.sh | sh
 
   # Windows (PowerShell)
-  irm https://raw.githubusercontent.com/youngwoocho02/unity-cli/master/install.ps1 | iex
+  irm https://raw.githubusercontent.com/utopia0107/unity-cli/master/install.ps1 | iex
 
   # Go install (any platform)
-  go install github.com/youngwoocho02/unity-cli@latest
+  go install github.com/utopia0107/unity-cli@latest
 
 Unity Setup:
   1. Window → Package Manager → + → Add package from git URL
-  2. Paste: https://github.com/youngwoocho02/unity-cli.git?path=unity-connector
+  2. Paste: https://github.com/utopia0107/unity-cli.git?path=unity-connector
   The Connector starts automatically when Unity opens.
 
 Verify:

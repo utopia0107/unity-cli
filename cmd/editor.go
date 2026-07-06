@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/youngwoocho02/unity-cli/internal/client"
+	"github.com/utopia0107/unity-cli/internal/client"
 )
 
 // editorCmd controls Unity play mode and asset database.
