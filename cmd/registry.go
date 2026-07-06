@@ -97,6 +97,7 @@ var commandRegistry = []CommandSpec{
 			{Name: "usings", Value: "<ns1,ns2>", Description: "Add extra using directives"},
 			{Name: "csc", Value: "<path>", Description: "Path to csc compiler (csc.dll or csc.exe); auto-detected if omitted"},
 			{Name: "dotnet", Value: "<path>", Description: "Path to dotnet runtime; auto-detected if omitted"},
+			{Name: "timeout_sec", Value: "<sec>", Description: "Compile timeout in seconds (execution phase is not bounded)", Default: "30"},
 		},
 		Examples: []string{
 			`unity-cli exec "return 1+1;"`,
@@ -108,6 +109,8 @@ var commandRegistry = []CommandSpec{
 		Notes: `Full access to UnityEngine, UnityEditor, and all loaded assemblies.
 Use 'return' for output, 'return null;' for void operations.
 Pipe code via stdin to avoid shell escaping: echo '<code>' | unity-cli exec
+Identical snippets are compiled once and cached until the next domain reload.
+Compile errors return structured data.errors with line numbers in YOUR code.
 
 Default usings: System, System.Collections.Generic, System.IO, System.Linq,
   System.Reflection, System.Threading.Tasks, UnityEngine,

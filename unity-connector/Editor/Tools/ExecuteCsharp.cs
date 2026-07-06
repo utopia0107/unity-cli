@@ -3,9 +3,11 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Reflection;
+using System.Security.Cryptography;
 using System.Text;
-using System.Text.RegularExpressions;
+using System.Threading.Tasks;
 using Newtonsoft.Json.Linq;
 using UnityEditor;
 using UnityEngine;
@@ -15,6 +17,8 @@ namespace UnityCliConnector.Tools
     [UnityCliTool(Name = "exec", Description = "Execute arbitrary C# code at runtime. Full access to Unity and all loaded assemblies.")]
     public static class ExecuteCsharp
     {
+        private const int DefaultTimeoutSec = 30;
+
         private static readonly string[] DefaultUsings =
         {
             "System",
@@ -30,6 +34,12 @@ namespace UnityCliConnector.Tools
             "UnityEditorInternal",
         };
 
+        // Compiled snippets keyed by source hash. Skips csc for repeated
+        // identical code (the common agent pattern) and bounds the
+        // Assembly.Load leak to one assembly per unique snippet per domain.
+        // Main-thread access only (phases 1 and 3 run on the main thread).
+        private static readonly Dictionary<string, MethodInfo> s_Cache = new Dictionary<string, MethodInfo>();
+
         public class Parameters
         {
             [ToolParameter("C# code to execute. Use 'return' for output.", Required = true, Position = 0)]
@@ -43,10 +53,15 @@ namespace UnityCliConnector.Tools
 
             [ToolParameter("Path to dotnet runtime. Auto-detected if omitted.")]
             public string Dotnet { get; set; }
+
+            [ToolParameter("Compile timeout in seconds (default 30). Does not bound the execution phase.")]
+            public int TimeoutSec { get; set; }
         }
 
-        public static object HandleCommand(JObject parameters)
+        public static async Task<object> HandleCommand(JObject parameters)
         {
+            // Phase 1 — main thread: parse params, build source, capture every
+            // Unity-API-dependent value needed by the background compile.
             var p = new ToolParams(parameters);
             var code = p.Get("code");
             if (string.IsNullOrEmpty(code))
@@ -62,12 +77,71 @@ namespace UnityCliConnector.Tools
                     extraUsings.AddRange(usingsToken.ToString().Split(','));
             }
 
-            var cscPath = p.Get("csc");
-            var dotnetPath = p.Get("dotnet");
-            return CompileAndExecute(BuildSource(code, extraUsings), cscPath, dotnetPath);
+            var timeoutSec = p.GetInt("timeout_sec", DefaultTimeoutSec).Value;
+            if (timeoutSec <= 0) timeoutSec = DefaultTimeoutSec;
+
+            var source = BuildSource(code, extraUsings, out var headerLines);
+            var hash = Sha256(source);
+            var cached = s_Cache.TryGetValue(hash, out var method);
+
+            if (!cached)
+            {
+                var csc = FindCsc(p.Get("csc"));
+                if (csc == null)
+                    return new ErrorResponse(
+                        "Cannot find csc compiler under: " + EditorApplication.applicationContentsPath +
+                        "\nSpecify the path manually with --csc <path-to-csc.dll-or-csc.exe>");
+
+                string dotnet = null;
+                if (csc.EndsWith(".dll"))
+                {
+                    dotnet = FindDotnet(p.Get("dotnet"));
+                    if (dotnet == null)
+                        return new ErrorResponse(
+                            "Cannot find dotnet runtime under: " + EditorApplication.applicationContentsPath +
+                            "\nSpecify the path manually with --dotnet <path>");
+                }
+
+                var references = CollectReferences();
+
+                // Phase 2 — thread pool: the external csc process runs without
+                // blocking the editor; EditorApplication.update keeps pumping.
+                var compile = await Task.Run(() => Compile(source, references, csc, dotnet, timeoutSec));
+
+                // Phase 3 — back on the main thread (Unity synchronization context).
+                if (compile.ErrorMessage != null)
+                {
+                    if (compile.Diagnostics != null && compile.Diagnostics.Count > 0)
+                    {
+                        var errors = CscOutputParser.ToUserErrors(compile.Diagnostics, headerLines);
+                        var first = compile.Diagnostics.FirstOrDefault(d => d.Severity == "error");
+                        var summary = first != null ? $"{first.Code}: {first.Message}" : compile.ErrorMessage;
+                        return new ErrorResponse($"Compile error: {summary}", new { errors });
+                    }
+                    return new ErrorResponse(compile.ErrorMessage);
+                }
+
+                var compiled = Assembly.Load(compile.AssemblyBytes);
+                method = compiled.GetType("__CliDynamic")?.GetMethod("Execute");
+                if (method == null)
+                    return new ErrorResponse("Internal error: compiled type or method not found.");
+                s_Cache[hash] = method;
+            }
+
+            object result;
+            try
+            {
+                result = method.Invoke(null, null);
+            }
+            catch (TargetInvocationException tie)
+            {
+                var inner = tie.InnerException ?? tie;
+                return new ErrorResponse($"Runtime error: {inner.GetType().Name}: {inner.Message}");
+            }
+            return new SuccessResponse(cached ? "OK (cached)" : "OK", Serialize(result, 0));
         }
 
-        private static string BuildSource(string code, List<string> extraUsings)
+        private static string BuildSource(string code, List<string> extraUsings, out int headerLines)
         {
             var sb = new StringBuilder();
             foreach (var u in DefaultUsings)
@@ -81,10 +155,44 @@ namespace UnityCliConnector.Tools
             sb.AppendLine(code);
             sb.AppendLine("  }");
             sb.AppendLine("}");
+
+            // usings + blank + class line + method line precede the user's code.
+            headerLines = DefaultUsings.Length + extraUsings.Count + 3;
             return sb.ToString();
         }
 
-        private static object CompileAndExecute(string source, string cscOverride = null, string dotnetOverride = null)
+        private static string Sha256(string text)
+        {
+            using var sha = SHA256.Create();
+            return BitConverter.ToString(sha.ComputeHash(Encoding.UTF8.GetBytes(text))).Replace("-", "");
+        }
+
+        private static List<string> CollectReferences()
+        {
+            var references = new List<string>();
+            var added = new HashSet<string>();
+            foreach (var asm in AppDomain.CurrentDomain.GetAssemblies())
+            {
+                try
+                {
+                    if (asm.IsDynamic || string.IsNullOrEmpty(asm.Location)) continue;
+                    if (!added.Add(asm.GetName().Name)) continue;
+                    references.Add(asm.Location);
+                }
+                catch { }
+            }
+            return references;
+        }
+
+        private class CompileResult
+        {
+            public byte[] AssemblyBytes;
+            public string ErrorMessage;
+            public List<CscOutputParser.Diagnostic> Diagnostics;
+        }
+
+        // Runs on a thread-pool thread: no Unity API access allowed here.
+        private static CompileResult Compile(string source, List<string> references, string csc, string dotnet, int timeoutSec)
         {
             var utf8 = new UTF8Encoding(false);
             var tmpDir = Path.Combine(Path.GetTempPath(), "unity-cli-exec");
@@ -106,47 +214,21 @@ namespace UnityCliConnector.Tools
                 rsp.AppendLine("-nowarn:0105,1701,1702");
                 rsp.AppendLine("-langversion:latest");
                 rsp.AppendLine($"\"{srcFile}\"");
-
-                var added = new HashSet<string>();
-                foreach (var asm in AppDomain.CurrentDomain.GetAssemblies())
-                {
-                    try
-                    {
-                        if (asm.IsDynamic || string.IsNullOrEmpty(asm.Location)) continue;
-                        if (!added.Add(asm.GetName().Name)) continue;
-                        rsp.AppendLine($"-r:\"{asm.Location}\"");
-                    }
-                    catch { }
-                }
-
+                foreach (var reference in references)
+                    rsp.AppendLine($"-r:\"{reference}\"");
                 File.WriteAllText(rspFile, rsp.ToString(), utf8);
 
                 var rspArg = $"@\"{rspFile}\"";
-                var csc = FindCsc(cscOverride);
                 string exe, args;
-
-                if (csc != null && csc.EndsWith(".dll"))
+                if (dotnet != null)
                 {
-                    var dotnet = FindDotnet(dotnetOverride);
-                    if (dotnet == null)
-                        return new ErrorResponse(
-                            "Cannot find dotnet runtime under: " +
-                            EditorApplication.applicationContentsPath +
-                            "\nSpecify the path manually with --dotnet <path>");
                     exe = dotnet;
                     args = $"exec \"{csc}\" {rspArg}";
                 }
-                else if (csc != null)
+                else
                 {
                     exe = csc;
                     args = rspArg;
-                }
-                else
-                {
-                    return new ErrorResponse(
-                        "Cannot find csc compiler under: " +
-                        EditorApplication.applicationContentsPath +
-                        "\nSpecify the path manually with --csc <path-to-csc.dll-or-csc.exe>");
                 }
 
                 var psi = new ProcessStartInfo
@@ -163,34 +245,39 @@ namespace UnityCliConnector.Tools
 
                 using (var proc = Process.Start(psi))
                 {
-                    var stdout = proc.StandardOutput.ReadToEnd();
-                    var stderr = proc.StandardError.ReadToEnd();
-                    proc.WaitForExit(30000);
+                    // Drain both streams concurrently — sequential ReadToEnd can
+                    // deadlock when the process fills the other pipe's buffer.
+                    var stdoutTask = proc.StandardOutput.ReadToEndAsync();
+                    var stderrTask = proc.StandardError.ReadToEndAsync();
+
+                    if (!proc.WaitForExit(timeoutSec * 1000))
+                    {
+                        try { proc.Kill(); } catch { }
+                        try { proc.WaitForExit(); } catch { }
+                        return new CompileResult { ErrorMessage = $"Compile timed out after {timeoutSec}s" };
+                    }
+                    // Parameterless overload waits for redirected streams to flush.
+                    proc.WaitForExit();
+                    Task.WaitAll(stdoutTask, stderrTask);
 
                     if (proc.ExitCode != 0)
                     {
+                        var stdout = stdoutTask.Result;
+                        var stderr = stderrTask.Result;
                         var output = string.IsNullOrEmpty(stderr) ? stdout : stderr;
-                        return new ErrorResponse($"Compile error:\n{FormatErrors(output)}");
+                        return new CompileResult
+                        {
+                            ErrorMessage = $"Compile error:\n{output}",
+                            Diagnostics = CscOutputParser.Parse(stdout + "\n" + stderr),
+                        };
                     }
                 }
 
-                var bytes = File.ReadAllBytes(outFile);
-                var compiled = Assembly.Load(bytes);
-                var method = compiled.GetType("__CliDynamic")?.GetMethod("Execute");
-                if (method == null)
-                    return new ErrorResponse("Internal error: compiled type or method not found.");
-
-                object result;
-                try
-                {
-                    result = method.Invoke(null, null);
-                }
-                catch (TargetInvocationException tie)
-                {
-                    var inner = tie.InnerException ?? tie;
-                    return new ErrorResponse($"Runtime error: {inner.GetType().Name}: {inner.Message}");
-                }
-                return new SuccessResponse("OK", Serialize(result, 0));
+                return new CompileResult { AssemblyBytes = File.ReadAllBytes(outFile) };
+            }
+            catch (Exception ex)
+            {
+                return new CompileResult { ErrorMessage = $"Compile failed: {ex.Message}" };
             }
             finally
             {
@@ -253,23 +340,6 @@ namespace UnityCliConnector.Tools
             }
 
             return name;
-        }
-
-        private static string FormatErrors(string raw)
-        {
-            var lines = raw.Split('\n');
-            var errors = new List<string>();
-            foreach (var line in lines)
-            {
-                var trimmed = line.Trim();
-                if (string.IsNullOrEmpty(trimmed)) continue;
-                var m = Regex.Match(trimmed, @"\((\d+),\d+\):\s*error\s+\w+:\s*(.+)");
-                if (m.Success)
-                    errors.Add($"L{m.Groups[1].Value}: {m.Groups[2].Value}");
-                else if (trimmed.Contains("error"))
-                    errors.Add(trimmed);
-            }
-            return errors.Count > 0 ? string.Join("\n", errors) : raw;
         }
 
         private static object Serialize(object obj, int depth)
