@@ -52,6 +52,23 @@ go test -tags integration ./...
 
 CI skips these since Unity is not available.
 
+### C# Connector Tests (requires Unity)
+
+커넥터 패키지에 EditMode 테스트가 있다 (`unity-connector/Tests/Editor`).
+개발용 Unity 프로젝트의 `Packages/manifest.json`에 아래를 추가해야 Test Runner가 인식한다:
+
+```json
+"testables": ["com.youngwoocho02.unity-cli-connector"]
+```
+
+**C# 커넥터 코드를 변경하면 Unity가 열려 있을 때 반드시 실행:**
+
+```bash
+unity-cli test --filter UnityCliConnector.Tests
+```
+
+CI는 C#을 컴파일하지 않으므로(Unity 필요) 이 로컬 실행이 커넥터의 유일한 테스트 게이트다.
+
 ## Checklist
 
 ### 변경 시
