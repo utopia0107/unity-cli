@@ -26,6 +26,7 @@ namespace UnityCliConnector
         static int s_LastPid;
         static long s_LastTimestamp;
         static bool s_LastCompileErrors;
+        static bool s_WriteFailureLogged;
 
         static Heartbeat()
         {
@@ -133,9 +134,17 @@ namespace UnityCliConnector
                     File.Replace(tmp, path, null);
                 else
                     File.Move(tmp, path);
+                s_WriteFailureLogged = false;
             }
-            catch
+            catch (Exception ex)
             {
+                // An unwritable instances dir makes this editor invisible to the
+                // CLI — surface the first failure instead of dying silently.
+                if (!s_WriteFailureLogged)
+                {
+                    s_WriteFailureLogged = true;
+                    Debug.LogWarning($"[UnityCliConnector] Heartbeat write failed: {ex.Message} (further failures suppressed)");
+                }
             }
         }
 

@@ -11,7 +11,7 @@ import (
 // resolve is needed for waitForReady so compile polling can follow the current project instance.
 func editorCmd(args []string, send sendFn, resolve instanceResolver) (*client.CommandResponse, error) {
 	if len(args) == 0 {
-		return nil, withCode(ExitUsage, fmt.Errorf("usage: unity-cli editor <play|stop|pause|refresh>"))
+		return nil, withCode(ExitUsage, fmt.Errorf("usage: unity-cli editor <play|stop|pause|resume|refresh>"))
 	}
 
 	action := args[0]
@@ -30,6 +30,9 @@ func editorCmd(args []string, send sendFn, resolve instanceResolver) (*client.Co
 
 	case "pause":
 		return send("manage_editor", map[string]interface{}{"action": "pause"})
+
+	case "resume":
+		return send("manage_editor", map[string]interface{}{"action": "resume"})
 
 	case "refresh":
 		_, compile := flags["compile"]
@@ -61,6 +64,6 @@ func editorCmd(args []string, send sendFn, resolve instanceResolver) (*client.Co
 		return send("refresh_unity", params)
 
 	default:
-		return nil, withCode(ExitUsage, fmt.Errorf("unknown editor action: %s\nAvailable: play, stop, pause, refresh", action))
+		return nil, withCode(ExitUsage, fmt.Errorf("unknown editor action: %s\nAvailable: play, stop, pause, resume, refresh", action))
 	}
 }

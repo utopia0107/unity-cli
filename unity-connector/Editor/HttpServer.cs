@@ -335,11 +335,21 @@ namespace UnityCliConnector
                 response.StatusCode = 500;
             }
 
-            var responseJson = JsonConvert.SerializeObject(result);
-            var buffer = Encoding.UTF8.GetBytes(responseJson);
-            response.ContentLength64 = buffer.Length;
-            await response.OutputStream.WriteAsync(buffer, 0, buffer.Length);
-            response.Close();
+            try
+            {
+                var responseJson = JsonConvert.SerializeObject(result);
+                var buffer = Encoding.UTF8.GetBytes(responseJson);
+                response.ContentLength64 = buffer.Length;
+                await response.OutputStream.WriteAsync(buffer, 0, buffer.Length);
+                response.Close();
+            }
+            catch (Exception ex)
+            {
+                // Client disconnected mid-response; abort instead of leaking an
+                // unobserved exception through the fire-and-forget HandleRequest.
+                Debug.LogWarning($"[UnityCliConnector] Failed to write response: {ex.Message}");
+                try { response.Abort(); } catch { }
+            }
         }
     }
 }

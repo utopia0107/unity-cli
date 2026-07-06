@@ -177,8 +177,9 @@ unity-cli editor play --wait
 # Stop play mode
 unity-cli editor stop
 
-# Toggle pause (only works during play mode)
+# Pause / resume play mode (idempotent; only works during play mode)
 unity-cli editor pause
+unity-cli editor resume
 
 # Refresh assets (blocked in play mode unless --force is set)
 unity-cli editor refresh

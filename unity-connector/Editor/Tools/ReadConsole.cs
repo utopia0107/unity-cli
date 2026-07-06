@@ -98,7 +98,7 @@ namespace UnityCliConnector.Tools
 
         private static object GetEntries(List<string> types, int? count, string stacktrace)
         {
-            var entries = new List<string>();
+            var entries = new List<object>();
             try
             {
                 _startGettingEntriesMethod.Invoke(null, null);
@@ -113,13 +113,25 @@ namespace UnityCliConnector.Tools
                     if (string.IsNullOrEmpty(message)) continue;
 
                     LogType logType = GetLogTypeFromMode(mode);
-                    bool want = logType == LogType.Exception || logType == LogType.Assert
+                    bool isErrorLike = logType == LogType.Exception || logType == LogType.Assert;
+                    bool want = isErrorLike
                         ? types.Contains("error")
                         : types.Contains(logType.ToString().ToLowerInvariant());
 
                     if (!want) continue;
 
-                    entries.Add(FormatMessage(message, stacktrace));
+                    // file/line come from the log entry itself — structured source
+                    // location for compile errors and Debug.Log call sites.
+                    string file = _fileField != null ? (string)_fileField.GetValue(logEntry) : null;
+                    int line = _lineField != null ? (int)_lineField.GetValue(logEntry) : 0;
+
+                    entries.Add(new
+                    {
+                        type = isErrorLike ? "error" : logType.ToString().ToLowerInvariant(),
+                        message = FormatMessage(message, stacktrace),
+                        file = string.IsNullOrEmpty(file) ? null : file,
+                        line = line > 0 ? (int?)line : null,
+                    });
 
                     if (count.HasValue && entries.Count >= count.Value) break;
                 }

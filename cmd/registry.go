@@ -53,7 +53,12 @@ var commandRegistry = []CommandSpec{
 	},
 	{
 		Name: "editor pause", Group: "Editor Control",
-		Summary:       "Toggle pause/resume (play mode only)",
+		Summary:       "Pause play mode (idempotent; play mode only)",
+		ConnectorTool: "manage_editor", RequiresUnity: true,
+	},
+	{
+		Name: "editor resume", Group: "Editor Control",
+		Summary:       "Resume paused play mode (idempotent; play mode only)",
 		ConnectorTool: "manage_editor", RequiresUnity: true,
 	},
 	{

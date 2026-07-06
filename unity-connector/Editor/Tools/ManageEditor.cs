@@ -7,7 +7,7 @@ using UnityEditorInternal;
 
 namespace UnityCliConnector.Tools
 {
-    [UnityCliTool(Description = "Controls Unity editor state. Actions: play, stop, pause, refresh, set_active_tool, add_tag, remove_tag, add_layer, remove_layer.")]
+    [UnityCliTool(Description = "Controls Unity editor state. Actions: play, stop, pause, resume, refresh, set_active_tool, add_tag, remove_tag, add_layer, remove_layer.")]
     public static class ManageEditor
     {
         private const int FirstUserLayerIndex = 8;
@@ -16,7 +16,7 @@ namespace UnityCliConnector.Tools
 
         public class Parameters
         {
-            [ToolParameter("Action to perform: play, stop, pause, refresh, set_active_tool, add_tag, remove_tag, add_layer, remove_layer", Required = true)]
+            [ToolParameter("Action to perform: play, stop, pause, resume, refresh, set_active_tool, add_tag, remove_tag, add_layer, remove_layer", Required = true)]
             public string Action { get; set; }
 
             [ToolParameter("Wait for action to complete before responding")]
@@ -61,12 +61,20 @@ namespace UnityCliConnector.Tools
                     return new SuccessResponse("Already in play mode.");
 
                 case "pause":
-                    if (EditorApplication.isPlaying)
-                    {
-                        EditorApplication.isPaused = !EditorApplication.isPaused;
-                        return new SuccessResponse(EditorApplication.isPaused ? "Game paused." : "Game resumed.");
-                    }
-                    return new ErrorResponse("Cannot pause/resume: Not in play mode.");
+                    if (!EditorApplication.isPlaying)
+                        return new ErrorResponse("Cannot pause: Not in play mode.");
+                    if (EditorApplication.isPaused)
+                        return new SuccessResponse("Already paused.");
+                    EditorApplication.isPaused = true;
+                    return new SuccessResponse("Game paused.");
+
+                case "resume":
+                    if (!EditorApplication.isPlaying)
+                        return new ErrorResponse("Cannot resume: Not in play mode.");
+                    if (!EditorApplication.isPaused)
+                        return new SuccessResponse("Already running (not paused).");
+                    EditorApplication.isPaused = false;
+                    return new SuccessResponse("Game resumed.");
 
                 case "stop":
                     if (EditorApplication.isPlaying)

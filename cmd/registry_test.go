@@ -9,7 +9,7 @@ import (
 // dispatchedCommands pins the set of command names the CLI dispatches or
 // documents. Adding a command requires a registry entry (and vice versa).
 var dispatchedCommands = []string{
-	"editor play", "editor stop", "editor pause", "editor refresh",
+	"editor play", "editor stop", "editor pause", "editor resume", "editor refresh",
 	"console", "exec", "menu", "screenshot", "reserialize", "test",
 	"profiler hierarchy", "profiler enable", "profiler disable", "profiler status", "profiler clear",
 	"list", "status", "update", "version", "commands", "help",

@@ -35,7 +35,7 @@ namespace UnityCliConnector
 
             var handler = ToolDiscovery.FindHandler(command);
             if (handler == null)
-                return new ErrorResponse($"Unknown command: {command}");
+                return new ErrorResponse($"Unknown command: {command}", new { code = "unknown_command" });
 
             try
             {

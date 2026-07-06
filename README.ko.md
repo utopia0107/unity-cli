@@ -177,8 +177,9 @@ unity-cli editor play --wait
 # 플레이 모드 종료
 unity-cli editor stop
 
-# 일시정지 토글 (플레이 모드에서만 동작)
+# 일시정지 / 재개 (멱등, 플레이 모드에서만 동작)
 unity-cli editor pause
+unity-cli editor resume
 
 # 에셋 새로고침 (플레이모드에서는 --force 없으면 차단)
 unity-cli editor refresh
