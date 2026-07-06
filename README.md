@@ -340,7 +340,7 @@ The CLI also checks Unity's state automatically before sending any command. If U
 | Flag | Description | Default |
 |------|-------------|---------|
 | `--project <path>` | Select Unity instance by project path | auto |
-| `--timeout <ms>` | HTTP request timeout | 120000 |
+| `--timeout <ms>` | HTTP request timeout. When set explicitly, also bounds compile waits and PlayMode test polling (defaults: 5m / 10m) | 120000 |
 | `--ignore-version-mismatch` | Skip CLI/connector version check | false |
 
 ```bash

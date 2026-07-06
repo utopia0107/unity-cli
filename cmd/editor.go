@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/youngwoocho02/unity-cli/internal/client"
 )
@@ -47,7 +48,10 @@ func editorCmd(args []string, send sendFn, resolve instanceResolver) (*client.Co
 			if !resp.Success {
 				return resp, nil
 			}
-			hasErrors := waitForReady(resolve)
+			hasErrors, waitErr := waitForReady(resolve, operationDeadline(5*time.Minute))
+			if waitErr != nil {
+				return nil, waitErr
+			}
 			if hasErrors {
 				return nil, fmt.Errorf("compilation finished with errors (check unity-cli console)")
 			}

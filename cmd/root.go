@@ -20,6 +20,7 @@ var (
 	flagProject               string
 	flagTimeout               int
 	flagIgnoreVersionMismatch bool
+	flagTimeoutSet            bool
 )
 
 func Execute() error {
@@ -38,6 +39,11 @@ func Execute() error {
 	if err := flag.CommandLine.Parse(flagArgs); err != nil {
 		return withCode(ExitUsage, fmt.Errorf("flag parse error: %w", err))
 	}
+	flag.Visit(func(f *flag.Flag) {
+		if f.Name == "timeout" {
+			flagTimeoutSet = true
+		}
+	})
 
 	if len(cmdArgs) == 0 {
 		printHelp()
@@ -209,6 +215,17 @@ func commandDeadline(timeoutMs int) time.Time {
 		timeoutMs = 120000
 	}
 	return time.Now().Add(time.Duration(timeoutMs) * time.Millisecond)
+}
+
+// operationDeadline returns the deadline for long-running waits (compile wait,
+// PlayMode test polling). An explicit --timeout governs them; otherwise the
+// operation-specific fallback applies so the 120s default doesn't silently
+// truncate multi-minute compiles or test runs.
+func operationDeadline(fallback time.Duration) time.Time {
+	if flagTimeoutSet {
+		return commandDeadline(flagTimeout)
+	}
+	return time.Now().Add(fallback)
 }
 
 // remainingMs returns the milliseconds left until deadline, at least 1,
@@ -491,7 +508,9 @@ Update:
 
 Global Options:
   --project <path>    Select Unity instance by project path
-  --timeout <ms>      Request timeout in ms (default: 120000)
+  --timeout <ms>      Request timeout in ms (default: 120000).
+                      When set explicitly, also bounds compile waits and
+                      PlayMode test polling (defaults: 5m / 10m).
   --ignore-version-mismatch
                       Skip CLI/connector version check
 Use "unity-cli <command> --help" for more information about a command.

@@ -108,12 +108,12 @@ func normalizeVersion(version string) string {
 	return version
 }
 
-// waitForReady polls indefinitely until the heartbeat state becomes "ready".
-// Returns true if compilation had errors.
-func waitForReady(resolve instanceResolver) bool {
+// waitForReady polls until the heartbeat state becomes "ready" or the deadline
+// passes. Returns true if compilation had errors.
+func waitForReady(resolve instanceResolver, deadline time.Time) (bool, error) {
 	fmt.Fprintf(os.Stderr, "Waiting for compilation...\n")
 
-	deadline := time.Now().Add(5 * time.Minute)
+	window := time.Until(deadline).Round(time.Second)
 	for time.Now().Before(deadline) {
 		time.Sleep(statusPollInterval)
 		status, err := resolve()
@@ -126,10 +126,9 @@ func waitForReady(resolve instanceResolver) bool {
 			} else {
 				fmt.Fprintf(os.Stderr, "Compilation complete.\n")
 			}
-			return status.CompileErrors
+			return status.CompileErrors, nil
 		}
 	}
 
-	fmt.Fprintf(os.Stderr, "Timed out waiting for compilation (5m).\n")
-	return true
+	return false, withCode(ExitTimeout, fmt.Errorf("timed out waiting for compilation (%s)", window))
 }

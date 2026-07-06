@@ -82,21 +82,21 @@ func testCmd(args []string, send sendFn, resolve instanceResolver) (*client.Comm
 	log.SetOutput(&suppressWriter{w: os.Stderr, suppress: "Unsolicited response received on idle HTTP channel"})
 	defer log.SetOutput(original)
 
-	return pollTestResults(runID, resolve)
+	return pollTestResults(runID, resolve, operationDeadline(10*time.Minute))
 }
 
 func newTestRunID() string {
 	return fmt.Sprintf("%d-%d", os.Getpid(), time.Now().UnixNano())
 }
 
-func pollTestResults(runID string, resolve instanceResolver) (*client.CommandResponse, error) {
+func pollTestResults(runID string, resolve instanceResolver, deadline time.Time) (*client.CommandResponse, error) {
 	home, err := os.UserHomeDir()
 	if err != nil {
 		return nil, fmt.Errorf("cannot determine home directory: %w", err)
 	}
 
 	resultsPath := filepath.Join(home, ".unity-cli", "status", fmt.Sprintf("test-results-%s.json", runID))
-	deadline := time.Now().Add(10 * time.Minute)
+	window := time.Until(deadline).Round(time.Second)
 
 	for time.Now().Before(deadline) {
 		time.Sleep(500 * time.Millisecond)
@@ -121,5 +121,5 @@ func pollTestResults(runID string, resolve instanceResolver) (*client.CommandRes
 		}
 	}
 
-	return nil, withCode(ExitTimeout, fmt.Errorf("timed out waiting for test results (10m)"))
+	return nil, withCode(ExitTimeout, fmt.Errorf("timed out waiting for test results (%s)", window))
 }

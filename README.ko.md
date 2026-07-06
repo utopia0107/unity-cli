@@ -340,7 +340,7 @@ unity-cli status
 | 플래그 | 설명 | 기본값 |
 |--------|------|--------|
 | `--project <path>` | 프로젝트 경로로 Unity 인스턴스 선택 | auto |
-| `--timeout <ms>` | HTTP 요청 타임아웃 | 120000 |
+| `--timeout <ms>` | HTTP 요청 타임아웃. 명시적으로 지정하면 컴파일 대기와 PlayMode 테스트 폴링도 이 값으로 제한 (기본: 5m / 10m) | 120000 |
 | `--ignore-version-mismatch` | CLI/connector 버전 검사 생략 | false |
 
 ```bash

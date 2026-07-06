@@ -54,12 +54,75 @@ func TestPollTestResultsStopsWhenProjectInstanceDisappears(t *testing.T) {
 
 	_, err := pollTestResults("missing", func() (*client.Instance, error) {
 		return nil, fmt.Errorf("no Unity instance found for project: /projects/current")
-	})
+	}, time.Now().Add(10*time.Second))
 	if err == nil {
 		t.Fatal("expected stopped editor error")
 	}
 	if !strings.Contains(err.Error(), "unity editor has stopped") {
 		t.Fatalf("expected stopped editor error, got %v", err)
+	}
+}
+
+func TestPollTestResultsHonorsDeadline(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	t.Setenv("USERPROFILE", home)
+
+	start := time.Now()
+	_, err := pollTestResults("missing", func() (*client.Instance, error) {
+		return &client.Instance{State: "ready"}, nil
+	}, time.Now().Add(700*time.Millisecond))
+	if err == nil {
+		t.Fatal("expected timeout error")
+	}
+	if got := ExitCodeFor(err); got != ExitTimeout {
+		t.Fatalf("exit code: got %d, want %d", got, ExitTimeout)
+	}
+	if elapsed := time.Since(start); elapsed > 5*time.Second {
+		t.Fatalf("deadline not honored, took %s", elapsed)
+	}
+}
+
+func TestWaitForReadyHonorsDeadline(t *testing.T) {
+	origPoll := statusPollInterval
+	statusPollInterval = time.Millisecond
+	t.Cleanup(func() { statusPollInterval = origPoll })
+
+	_, err := waitForReady(func() (*client.Instance, error) {
+		return &client.Instance{State: "compiling"}, nil
+	}, time.Now().Add(20*time.Millisecond))
+	if err == nil {
+		t.Fatal("expected timeout error")
+	}
+	if got := ExitCodeFor(err); got != ExitTimeout {
+		t.Fatalf("exit code: got %d, want %d", got, ExitTimeout)
+	}
+}
+
+func TestOperationDeadlineUsesFallbackWhenTimeoutUnset(t *testing.T) {
+	origSet := flagTimeoutSet
+	flagTimeoutSet = false
+	t.Cleanup(func() { flagTimeoutSet = origSet })
+
+	deadline := operationDeadline(5 * time.Minute)
+	if remaining := time.Until(deadline); remaining < 4*time.Minute {
+		t.Fatalf("expected ~5m fallback window, got %s", remaining)
+	}
+}
+
+func TestOperationDeadlineUsesExplicitTimeout(t *testing.T) {
+	origSet := flagTimeoutSet
+	origTimeout := flagTimeout
+	flagTimeoutSet = true
+	flagTimeout = 1000
+	t.Cleanup(func() {
+		flagTimeoutSet = origSet
+		flagTimeout = origTimeout
+	})
+
+	deadline := operationDeadline(5 * time.Minute)
+	if remaining := time.Until(deadline); remaining > 2*time.Second {
+		t.Fatalf("expected ~1s explicit window, got %s", remaining)
 	}
 }
 
